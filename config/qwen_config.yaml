@@ -1,0 +1,67 @@
+# ===== QWEN-VL CONFIG =====
+experiment:
+  name: "wad_qwen_vl_training"
+  version: "1.0"
+  description: "Qwen-VL for Autonomous Driving"
+  tags: ["qwen-vl", "navigation"]
+
+model:
+  architecture: "qwen"
+  name: "Qwen/Qwen-VL-Chat"
+  
+  lora:
+    enabled: true
+    r: 16
+    alpha: 16
+    dropout: 0.05
+    target_modules: ["c_attn", "c_proj"]  # Qwen-specific
+  
+  quantization:
+    enabled: true
+    bits: 4
+    type: "nf4"
+    double_quant: true
+  
+  vision:
+    freeze_encoder: true
+    image_size: [448, 448]  # Qwen uses 448
+    max_tiles: 1
+
+data:
+  name: "minhdang0901/WAD_Images"
+  num_frames: 1
+  train_split: 0.9
+  seed: 42
+
+training:
+  output_dir: "./outputs/qwen_vl"
+  num_epochs: 3
+  batch_size: 1
+  gradient_accumulation_steps: 2
+  learning_rate: 2e-4
+  warmup_steps: 100
+  weight_decay: 0.01
+  fp16: true
+  gradient_checkpointing: true
+  optimizer: "paged_adamw_8bit"
+  lr_scheduler: "cosine"
+  logging_steps: 5
+  eval_steps: 500
+  save_steps: 500
+  save_total_limit: 2
+
+evaluation:
+  metrics: ["exact_match", "field_accuracy"]
+  batch_size: 2
+
+hardware:
+  device: "cuda"
+  num_workers: 0
+  pin_memory: false
+  cuda_alloc_conf: "expandable_segments:True"
+
+tracking:
+  enabled: true
+  backend: "mlflow"
+  project_name: "wad-vlm"
+  log_model: true

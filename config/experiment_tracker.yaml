@@ -1,0 +1,53 @@
+# ===== EXPERIMENT TRACKING CONFIG =====
+
+# MLflow settings
+mlflow:
+  tracking_uri: "./mlruns"
+  experiment_name: "wad_vlm_experiments"
+  run_name_prefix: "run"
+  artifact_location: "./mlruns/artifacts"
+  log_system_metrics: true
+
+# Weights & Biases settings
+wandb:
+  project: "wad-vlm"
+  entity: null  # Your wandb username/team
+  notes: "Vision-Language Model for Blind Navigation"
+  tags:
+    - "vlm"
+    - "navigation"
+    - "autonomous-driving"
+  mode: "online"  # online, offline, disabled
+  save_code: true
+  log_frequency: 10
+
+# TensorBoard settings
+tensorboard:
+  log_dir: "./tensorboard_logs"
+  comment: "WAD VLM Training"
+
+# What to log
+logging:
+  log_model: true
+  log_gradients: false
+  log_parameters: true
+  log_metrics: true
+  log_artifacts: true
+  log_predictions: true  # Log sample predictions
+  
+  # Metrics to track
+  metrics:
+    - "loss"
+    - "eval_loss"
+    - "learning_rate"
+    - "epoch"
+    - "exact_match"
+    - "location_accuracy"
+    - "weather_accuracy"
+    - "traffic_accuracy"
+    - "gpu_memory_allocated"
+    - "gpu_memory_reserved"
+  
+  # Log sample predictions every N steps
+  prediction_frequency: 100
+  num_prediction_samples: 5
