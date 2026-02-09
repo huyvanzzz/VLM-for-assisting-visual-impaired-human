@@ -2,8 +2,10 @@ from transformers import (
     AutoConfig, AutoProcessor, AutoTokenizer, 
     AutoModelForVision2Seq, BitsAndBytesConfig
 )
+
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 import torch
+from src.models.base_vlm import BaseVLM
 
 class LLaVAModel(BaseVLM):
     """LLaVA-OneVision model wrapper"""
@@ -71,7 +73,7 @@ class LLaVAModel(BaseVLM):
         
         return self.processor, self.tokenizer
     
-    def apply_lora(self, lora_config: Dict):
+    def apply_lora(self, lora_config: dict):
         lora_cfg = LoraConfig(
             r=lora_config['r'],
             lora_alpha=lora_config['alpha'],
@@ -99,6 +101,6 @@ class LLaVAModel(BaseVLM):
         
         print(f"✓ Frozen {frozen_count} vision parameters")
     
-    def prepare_inputs(self, batch: Dict) -> Dict:
+    def prepare_inputs(self, batch: dict) -> dict:
         """LLaVA-specific input preparation"""
         return batch  # LLaVA uses standard format
