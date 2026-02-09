@@ -152,7 +152,6 @@ class WADDataset(Dataset):
             truncation=True,
             max_length=256 # Giới hạn độ dài câu trả lời để tiết kiệm bộ nhớ
         )
-        
         answer_input_ids = answer_tokens['input_ids'].squeeze(0)
         
         # 5. GHÉP CHUỖI (CONCATENATE) -> Logic Training Chuẩn
@@ -194,3 +193,81 @@ class WADDataset(Dataset):
             return_dict['image_grid_thw'] = inputs['image_grid_thw'].squeeze(0)
             
         return return_dict
+
+
+def build_dataset(config: Dict, processor, tokenizer):
+    """Build train/eval datasets from config"""
+    
+    from datasets import load_dataset
+    from collections import defaultdict
+    import pickle
+    import os
+    
+    # Load metadata
+    print("Loading metadata...")
+    metadata = load_dataset(
+        config['data']['name'],
+        data_files={
+            "train": "train.json",
+            "test": "test_alter.json"
+        }
+    )
+    
+    # Load bboxes
+    print("Loading bboxes...")
+    bbox_dataset = load_dataset(
+        config['data']['name'],
+        data_files="all_bboxes.jsonl",
+        split="train"
+    )
+    
+    bbox_by_folder = defaultdict(lambda: defaultdict(list))
+    for bbox_entry in bbox_dataset:
+        folder_id = bbox_entry['folder_id']
+        frame_id = bbox_entry['frame_id']
+        
+        bbox_by_folder[folder_id][frame_id].append({
+            'label': bbox_entry['label'],
+            'confidence': bbox_entry['probs'],
+            'bbox': bbox_entry['boxs']
+        })
+    
+    # Load frame index
+    print("Loading frame index...")
+    index_file = "./wad_dataset/frame_index.pkl"
+    
+    if os.path.exists(index_file):
+        with open(index_file, 'rb') as f:
+            frame_index = pickle.load(f)
+    else:
+        raise FileNotFoundError(f"Frame index not found at {index_file}. Run build_frame_index.py first.")
+    
+    # Create datasets
+    train_dataset = WADDataset(
+        metadata_dataset=metadata,
+        frame_index=frame_index,
+        bbox_by_folder=bbox_by_folder,
+        processor=processor,
+        tokenizer=tokenizer,
+        split='train',
+        num_frames=config['data']['num_frames'],
+        image_size=tuple(config['model']['vision']['image_size'])
+    )
+    
+    # Train/val split
+    train_size = config['data']['train_split']
+    indices = list(range(len(train_dataset)))
+    
+    train_indices, val_indices = train_test_split(
+        indices,
+        train_size=train_size,
+        random_state=config['data']['seed']
+    )
+    
+    from torch.utils.data import Subset
+    train_subset = Subset(train_dataset, train_indices)
+    val_subset = Subset(train_dataset, val_indices)
+    
+    print(f"✓ Train: {len(train_subset)}, Val: {len(val_subset)}")
+    
+    return train_subset, val_subset
