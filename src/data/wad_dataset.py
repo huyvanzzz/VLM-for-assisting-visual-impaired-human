@@ -137,6 +137,8 @@ class WADDataset(Dataset):
             text=prompt_text,
             images=frames,
             return_tensors="pt",
+            truncation=False,  # <--- THÊM DÒNG NÀY (Bắt buộc): Cấm processor tự cắt
+            padding=False      # <--- THÊM DÒNG NÀY: Để mình tự xử lý padding sau
         )
         
         # Lấy các Tensor ra khỏi batch dimension (vì processor trả về batch=1)
