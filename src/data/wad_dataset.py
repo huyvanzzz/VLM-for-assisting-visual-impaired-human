@@ -172,7 +172,7 @@ class WADDataset(Dataset):
         ], dim=0)
         
         # 6. Cắt ngắn nếu quá dài (Tránh OOM và tiết kiệm tính toán)
-        MAX_TOTAL_LEN = 512 # Bạn có thể giảm xuống 1024 nếu muốn nhanh hơn nữa
+        MAX_TOTAL_LEN = 3072 # Bạn có thể giảm xuống 1024 nếu muốn nhanh hơn nữa
         if len(input_ids) > MAX_TOTAL_LEN:
             input_ids = input_ids[:MAX_TOTAL_LEN]
             attention_mask = attention_mask[:MAX_TOTAL_LEN]
