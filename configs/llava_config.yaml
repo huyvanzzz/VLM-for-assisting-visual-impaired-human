@@ -35,6 +35,7 @@ model:
   # Vision config
   vision:
     freeze_encoder: true
+    image_size: [384, 384]
     max_tiles: 1
 
 # ===== DATASET =====
