@@ -37,21 +37,6 @@ class WADDataset(Dataset):
     def __len__(self):
         return len(self.metadata)
 
-    def pad_to_multiple(self, image, patch_size=28):
-        """
-        Thêm viền đen (padding) để kích thước chia hết cho 28.
-        Giúp tránh lỗi 2051/2052 token mismatch mà KHÔNG làm méo BBox.
-        """
-        w, h = image.size
-        target_w = ((w + patch_size - 1) // patch_size) * patch_size
-        target_h = ((h + patch_size - 1) // patch_size) * patch_size
-        
-        if target_w == w and target_h == h:
-            return image
-        
-        new_img = Image.new("RGB", (target_w, target_h), (0, 0, 0))
-        new_img.paste(image, (0, 0))
-        return new_img
 
     def _load_frames(self, frame_path: str, frame_ids: List[int]) -> List[Image.Image]:
         """Load và xử lý ảnh (Padding luôn tại đây)"""
@@ -73,9 +58,6 @@ class WADDataset(Dataset):
                     member = tar.getmember(tar_path)
                     file_obj = tar.extractfile(member)
                     img = Image.open(io.BytesIO(file_obj.read())).convert('RGB')
-                    
-                    # --- SỬA QUAN TRỌNG: Padding ảnh ngay khi load ---
-                    img = self.pad_to_multiple(img, patch_size=28)
                     # -------------------------------------------------
                     frames_dict[frame_id] = img
         
