@@ -41,7 +41,7 @@ class VLMTrainer:
             per_device_train_batch_size=self.config['training']['batch_size'],
             gradient_accumulation_steps=self.config['training']['gradient_accumulation_steps'],
             learning_rate=float(self.config['training']['learning_rate']),
-            warmup_steps=float(self.config['training']['warmup_steps']),
+            warmup_steps=int(self.config['training']['warmup_steps']),
             weight_decay=float(self.config['training']['weight_decay']),
             fp16=self.config['training']['fp16'],
             gradient_checkpointing=self.config['training']['gradient_checkpointing'],

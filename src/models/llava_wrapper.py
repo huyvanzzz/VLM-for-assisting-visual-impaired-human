@@ -1,6 +1,6 @@
 from transformers import (
     AutoConfig, AutoProcessor, AutoTokenizer, 
-    AutoModelForVision2Seq, BitsAndBytesConfig
+    AutoModelForImageTextToText, BitsAndBytesConfig
 )
 
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
@@ -30,13 +30,13 @@ class LLaVAModel(BaseVLM):
         config.use_cache = False
         
         # Load model
-        self.model = AutoModelForVision2Seq.from_pretrained(
+        self.model = AutoModelForImageTextToText.from_pretrained(
             self.config['model']['name'],
             quantization_config=bnb_config,
             config=config,
             device_map="auto",
             trust_remote_code=True,
-            torch_dtype=torch.float16
+            dtype=torch.float16
         )
         
         # Prepare for training
@@ -62,7 +62,8 @@ class LLaVAModel(BaseVLM):
                 "size": {"height": vision_cfg['image_size'][0], "width": vision_cfg['image_size'][1]},
                 "do_resize": True,
                 "do_center_crop": False
-            }
+            },
+            use_fast=True,
         )
         
         self.tokenizer = self.processor.tokenizer if hasattr(self.processor, 'tokenizer') else \

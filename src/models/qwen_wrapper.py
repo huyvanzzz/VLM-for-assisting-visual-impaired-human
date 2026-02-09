@@ -32,7 +32,7 @@ class QwenVLModel(BaseVLM):
             config=config,
             device_map="auto",
             trust_remote_code=True,
-            torch_dtype=torch.float16
+            dtype=torch.float16
         )
         
         self.model = prepare_model_for_kbit_training(
@@ -48,7 +48,8 @@ class QwenVLModel(BaseVLM):
     def load_processor(self):
         self.processor = AutoProcessor.from_pretrained(
             self.config['model']['name'],
-            trust_remote_code=True
+            trust_remote_code=True,
+            use_fast=True,
         )
         
         self.tokenizer = AutoTokenizer.from_pretrained(
