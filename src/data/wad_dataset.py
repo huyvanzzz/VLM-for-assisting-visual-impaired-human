@@ -60,9 +60,6 @@ class WADDataset(Dataset):
                     img_bytes = file_obj.read()
                     img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
                     
-                    # FIX: Resize to fixed size
-                    img = img.resize(self.image_size, Image.LANCZOS)
-                    
                     frames_dict[frame_id] = img
         
         return [frames_dict[fid] for fid in frame_ids]
