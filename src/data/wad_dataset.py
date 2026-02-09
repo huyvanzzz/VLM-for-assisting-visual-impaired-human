@@ -141,6 +141,22 @@ class WADDataset(Dataset):
             padding=False      # <--- THÊM DÒNG NÀY: Để mình tự xử lý padding sau
         )
         
+        debug_pixel_values = inputs['pixel_values']
+        
+        # In ra màn hình console
+        print(f"\n[DEBUG IMAGE INFO]")
+        print(f" - Shape gốc: {debug_pixel_values.shape}")
+        # Shape thường là: (Batch, Num_Crops, Channels, Height, Width)
+        # Ví dụ: torch.Size([1, 3, 3, 384, 384])
+        
+        if len(debug_pixel_values.shape) == 5:
+            n_crops = debug_pixel_values.shape[1]
+            h = debug_pixel_values.shape[3]
+            w = debug_pixel_values.shape[4]
+            print(f" - Số lượng mảnh (Crops): {n_crops}")
+            print(f" - Kích thước mỗi mảnh: {h} x {w}")
+        else:
+            print(f" - Shape lạ: {debug_pixel_values.shape}")
         # Lấy các Tensor ra khỏi batch dimension (vì processor trả về batch=1)
         prompt_input_ids = inputs['input_ids'].squeeze(0)
         prompt_attention_mask = inputs['attention_mask'].squeeze(0)
