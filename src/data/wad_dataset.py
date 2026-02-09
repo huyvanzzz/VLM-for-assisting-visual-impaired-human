@@ -152,6 +152,7 @@ class WADDataset(Dataset):
             truncation=True,
             max_length=256 # Giới hạn độ dài câu trả lời để tiết kiệm bộ nhớ
         )
+        
         answer_input_ids = answer_tokens['input_ids'].squeeze(0)
         
         # 5. GHÉP CHUỖI (CONCATENATE) -> Logic Training Chuẩn
