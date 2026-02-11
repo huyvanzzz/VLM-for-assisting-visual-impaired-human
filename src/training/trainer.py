@@ -58,6 +58,7 @@ class VLMTrainer:
                 warmup_steps=int(self.config['training']['warmup_steps']),
                 weight_decay=float(self.config['training']['weight_decay']),
                 fp16=self.config['training']['fp16'],
+                group_by_length=True,
                 gradient_checkpointing=self.config['training']['gradient_checkpointing'],
                 logging_steps=self.config['training']['logging_steps'],
                 eval_steps=self.config['training']['eval_steps'],
