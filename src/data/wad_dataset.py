@@ -152,14 +152,13 @@ class WADDataset(Dataset):
         
         # Nếu là 3 mảnh (Features=2052) mà Token chỉ có 2051 -> Bù 1 token
         if len(pixel_values.shape) == 4 and pixel_values.shape[0] == 3:
-            if current_img_tokens == 2051:
-                print(" -> [AUTO-FIX] Phát hiện 2051 tokens (thiếu 1). Đang bù thêm 1 token <image>...")
-                extra_token = torch.tensor([image_token_id], dtype=torch.long)
-                extra_mask = torch.tensor([1], dtype=torch.long)
-                
-                # Nối vào đuôi Prompt
-                prompt_input_ids = torch.cat([prompt_input_ids, extra_token], dim=0)
-                prompt_attention_mask = torch.cat([prompt_attention_mask, extra_mask], dim=0)
+            print(" -> [AUTO-FIX] Phát hiện 2051 tokens (thiếu 1). Đang bù thêm 1 token <image>...")
+            extra_token = torch.tensor([image_token_id], dtype=torch.long)
+            extra_mask = torch.tensor([1], dtype=torch.long)
+            
+            # Nối vào đuôi Prompt
+            prompt_input_ids = torch.cat([prompt_input_ids, extra_token], dim=0)
+            prompt_attention_mask = torch.cat([prompt_attention_mask, extra_mask], dim=0)
         # ==========================================================================
 
         # 4. Tokenize Answer (Câu trả lời)
