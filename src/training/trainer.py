@@ -19,6 +19,7 @@ class VLMTrainer:
         from ..models.model_registry import build_model
         from ..data.wad_dataset import build_dataset
         from .callbacks import MemoryOptimizationCallback, ExperimentTrackingCallback
+        from ..data.collator import VLMDataCollator
         
         # Build model
         print("[1] Building model...")
@@ -56,6 +57,7 @@ class VLMTrainer:
             optim=self.config['training']['optimizer']
         )
         
+        data_collator = VLMDataCollator()
         # Callbacks
         callbacks = [
             MemoryOptimizationCallback(),
@@ -71,6 +73,7 @@ class VLMTrainer:
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             tokenizer=vlm.tokenizer,
+            data_collator=data_collator,
             callbacks=callbacks
         )
         
