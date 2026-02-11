@@ -2,6 +2,8 @@ from transformers import Trainer, TrainingArguments
 from typing import Dict, Any
 import yaml
 import torch
+from tqdm.auto import tqdm
+
 
 class VLMTrainer:
     """High-level training orchestration"""
@@ -54,7 +56,8 @@ class VLMTrainer:
             dataloader_pin_memory=self.config['hardware']['pin_memory'],
             dataloader_num_workers=self.config['hardware']['num_workers'],
             report_to="none",  # Handled by custom callback
-            optim=self.config['training']['optimizer']
+            optim=self.config['training']['optimizer'],
+            disable_tqdm=False
         )
         
         data_collator = VLMDataCollator()
@@ -76,7 +79,8 @@ class VLMTrainer:
             data_collator=data_collator,
             callbacks=callbacks
         )
-        
+        pbar.update(1)
+
         print("✓ Setup complete!")
     
     def train(self):

@@ -124,20 +124,20 @@ class WADDataset(Dataset):
         
         debug_pixel_values = inputs['pixel_values']
         
-        # In ra màn hình console (GIỮ NGUYÊN CỦA BẠN)
-        print(f"\n[DEBUG IMAGE INFO]")
-        print(f" - Shape gốc: {debug_pixel_values.shape}")
-        # Shape thường là: (Batch, Num_Crops, Channels, Height, Width)
-        # Ví dụ: torch.Size([1, 3, 3, 384, 384])
+        # # In ra màn hình console (GIỮ NGUYÊN CỦA BẠN)
+        # print(f"\n[DEBUG IMAGE INFO]")
+        # print(f" - Shape gốc: {debug_pixel_values.shape}")
+        # # Shape thường là: (Batch, Num_Crops, Channels, Height, Width)
+        # # Ví dụ: torch.Size([1, 3, 3, 384, 384])
         
-        if len(debug_pixel_values.shape) == 5:
-            n_crops = debug_pixel_values.shape[1]
-            h = debug_pixel_values.shape[3]
-            w = debug_pixel_values.shape[4]
-            print(f" - Số lượng mảnh (Crops): {n_crops}")
-            print(f" - Kích thước mỗi mảnh: {h} x {w}")
-        else:
-            print(f" - Shape lạ: {debug_pixel_values.shape}")
+        # if len(debug_pixel_values.shape) == 5:
+        #     n_crops = debug_pixel_values.shape[1]
+        #     h = debug_pixel_values.shape[3]
+        #     w = debug_pixel_values.shape[4]
+        #     print(f" - Số lượng mảnh (Crops): {n_crops}")
+        #     print(f" - Kích thước mỗi mảnh: {h} x {w}")
+        # else:
+        #     print(f" - Shape lạ: {debug_pixel_values.shape}")
             
         # Lấy các Tensor ra khỏi batch dimension (vì processor trả về batch=1)
         prompt_input_ids = inputs['input_ids'].squeeze(0)
@@ -201,13 +201,16 @@ class WADDataset(Dataset):
 
         num_image_tokens = (input_ids == image_token_id).sum().item()
 
-        print("\n[DEBUG ALIGNMENT CHECK]")
-        print("Total input_ids length:", len(input_ids))
-        print("Image token id:", image_token_id)
-        # Lúc này nếu fix thành công, dòng này sẽ in ra 2052
-        print("Number of <image> tokens in text:", num_image_tokens) 
+        debug_count = getattr(self, '_debug_count', 0)  # Lấy giá trị hoặc 0
 
-        print("Pixel_values shape:", pixel_values.shape)
+        # if debug_count < 2:
+        #     print("\n[DEBUG ALIGNMENT CHECK]")
+        #     print("Total input_ids length:", len(input_ids))
+        #     print("Image token id:", image_token_id)
+        #     print("Number of <image> tokens in text:", num_image_tokens) 
+        #     print("Pixel_values shape:", pixel_values.shape)
+            
+        #     self._debug_count = debug_count + 1  # Lưu lại
 
         if 'image_grid_thw' in inputs:
             print("image_grid_thw:", inputs['image_grid_thw'])

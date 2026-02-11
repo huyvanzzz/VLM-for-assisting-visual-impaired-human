@@ -26,7 +26,7 @@ class MemoryOptimizationCallback(TrainerCallback):
                     print(f"  [Step {step}] Input pixel_values: {pv.shape} ({pv_gb:.2f}GB)")
                     
                     if pv_gb > 1.5:
-                        print(f"  ⚠️ Large pixel_values detected!")
+                        print(f"  Large pixel_values detected!")
         
         return control
     
