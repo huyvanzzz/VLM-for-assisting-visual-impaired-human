@@ -152,7 +152,7 @@ class WADDataset(Dataset):
         
         # Nếu là 3 mảnh (Features=2052) mà Token chỉ có 2051 -> Bù 1 token
         if len(pixel_values.shape) == 4 and pixel_values.shape[0] == 3:
-            print(" -> [AUTO-FIX] Phát hiện 2051 tokens (thiếu 1). Đang bù thêm 1 token <image>...")
+            # print(" -> [AUTO-FIX] Phát hiện 2051 tokens (thiếu 1). Đang bù thêm 1 token <image>...")
             extra_token = torch.tensor([image_token_id], dtype=torch.long)
             extra_mask = torch.tensor([1], dtype=torch.long)
             
@@ -211,9 +211,6 @@ class WADDataset(Dataset):
         #     print("Pixel_values shape:", pixel_values.shape)
             
         #     self._debug_count = debug_count + 1  # Lưu lại
-
-        if 'image_grid_thw' in inputs:
-            print("image_grid_thw:", inputs['image_grid_thw'])
 
         # Copy các thông tin phụ (quan trọng cho model Qwen/LLaVA)
         if 'image_sizes' in inputs:
