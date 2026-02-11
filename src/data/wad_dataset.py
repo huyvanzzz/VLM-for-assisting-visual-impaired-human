@@ -17,7 +17,7 @@ class WADDataset(Dataset):
         frame_index: dict,
         bbox_by_folder: dict,
         processor,
-        tokenizer,
+        tokenizer,  
         split: str = 'train',
         num_frames: int = 1,
         image_size: tuple = (384, 384)
@@ -33,9 +33,68 @@ class WADDataset(Dataset):
         
         # Cấu hình Tokenizer để tiết kiệm token
         self.tokenizer.padding_side = "right" # Quan trọng cho training
-        self.tokenizer.truncation_side = "right" # Quan trọng cho training
+        print(f"[DEBUG] Calculating tokens_per_image...")
+        self.tokens_per_image = self._get_tokens_per_image(self.image_size)
+        print(f"[DEBUG] tokens_per_image = {self.tokens_per_image}")  # ← Kiểm tra giá trị
+    
+        if self.tokens_per_image == 0:
+            raise ValueError("tokens_per_image is 0! Check processor config!")
     def __len__(self):
         return len(self.metadata)
+
+    def _get_tokens_per_image(self, image_size: tuple) -> int:
+        """Calculate number of <image> tokens per image"""
+        import PIL.Image
+        
+        dummy_img = PIL.Image.new('RGB', image_size)
+        
+        # ✅ Bước 1: Process ảnh để lấy pixel_values
+        # Chỉ process image, KHÔNG cần text
+        img_features = self.processor.image_processor(
+            images=[dummy_img],
+            return_tensors="pt"
+        )
+        
+        pixel_values = img_features['pixel_values']
+        print(f"[DEBUG] pixel_values.shape = {pixel_values.shape}")
+        
+        # ✅ Bước 2: Tính từ shape thực tế
+        # Shape: [batch, num_crops, channels, height, width]
+        # Ví dụ: torch.Size([1, 3, 3, 384, 384])
+        
+        if len(pixel_values.shape) == 5:
+            batch_size = pixel_values.shape[0]
+            num_crops = pixel_values.shape[1]
+            channels = pixel_values.shape[2]
+            crop_h = pixel_values.shape[3]
+            crop_w = pixel_values.shape[4]
+            
+            # Lấy patch_size từ processor
+            patch_size = getattr(self.processor.image_processor, 'patch_size', 14)
+            
+            # Tính số patches mỗi crop
+            num_patches_h = crop_h // patch_size
+            num_patches_w = crop_w // patch_size
+            tokens_per_crop = num_patches_h * num_patches_w
+            
+            # Tổng tokens cho 1 ảnh
+            total_tokens = tokens_per_crop * num_crops
+            
+            print(f"[INFO] Calculated tokens_per_image:")
+            print(f"  - num_crops: {num_crops}")
+            print(f"  - crop_size: {crop_h}x{crop_w}")
+            print(f"  - patch_size: {patch_size}")
+            print(f"  - tokens_per_crop: {tokens_per_crop}")
+            print(f"  - total_tokens: {total_tokens}")
+            
+            return total_tokens
+        
+        else:
+            # Fallback nếu shape không như expected
+            raise ValueError(
+                f"Unexpected pixel_values shape: {pixel_values.shape}. "
+                f"Expected 5D tensor [batch, num_crops, channels, height, width]"
+            )
 
     def _load_frames(self, frame_path: str, frame_ids: List[int]) -> List[Image.Image]:
         """Load và xử lý ảnh (Padding luôn tại đây)"""
@@ -106,7 +165,7 @@ class WADDataset(Dataset):
         polm_list = self._load_bboxes(frame_path, frame_ids)
         
         # 2. Tạo Text
-        prompt_text = construct_prompt(polm_list, num_images=self.num_frames, tokens_per_image=2052)
+        prompt_text = construct_prompt(polm_list, num_images=self.num_frames, tokens_per_image=self.tokens_per_image)
         ground_truth_dict = map_metadata_to_ground_truth(sample)
         
         # Tối ưu Token: Chỉ lấy JSON string gọn nhất + Token kết thúc
