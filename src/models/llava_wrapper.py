@@ -1,5 +1,5 @@
 from transformers import (
-    AutoConfig, AutoProcessor, AutoTokenizer, 
+    AutoConfig, AutoProcessor, AutoTokenizer,
     AutoModelForImageTextToText, BitsAndBytesConfig
 )
 
