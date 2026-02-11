@@ -135,3 +135,9 @@ class VLMTrainer:
             pbar.update(1)
         print(f"✓ Model saved to {output_path}")
         self._clear_memory()
+    def _clear_memory(self):
+        """Clear GPU and CPU memory"""
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+        gc.collect()
