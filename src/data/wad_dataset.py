@@ -33,10 +33,27 @@ class WADDataset(Dataset):
         
         # Cấu hình Tokenizer để tiết kiệm token
         self.tokenizer.padding_side = "right" # Quan trọng cho training
+        self.tokens_per_image = self._get_tokens_per_image(image_size)
+        print(f"[INFO] Tokens per image: {self.tokens_per_image}")
 
     def __len__(self):
         return len(self.metadata)
 
+    def _get_tokens_per_image(self,image_size: tuple) -> int:
+        """Calculate number of <image> tokens per image"""
+        import PIL.Image
+        dummy_img = PIL.Image.new('RGB', image_size)
+        
+        test_inputs = self.processor(
+            text="",
+            images=[dummy_img],
+            return_tensors="pt"
+        )
+        
+        image_token_id = self.processor.tokenizer.convert_tokens_to_ids("<image>")
+        num_tokens = (test_inputs['input_ids'] == image_token_id).sum().item()
+        
+        return num_tokens
 
     def _load_frames(self, frame_path: str, frame_ids: List[int]) -> List[Image.Image]:
         """Load và xử lý ảnh (Padding luôn tại đây)"""
@@ -107,7 +124,7 @@ class WADDataset(Dataset):
         polm_list = self._load_bboxes(frame_path, frame_ids)
         
         # 2. Tạo Text
-        prompt_text = construct_prompt(polm_list, num_images=self.num_frames)
+        prompt_text = construct_prompt(polm_list, num_images=self.num_frames, tokens_per_image=self.tokens_per_image)
         ground_truth_dict = map_metadata_to_ground_truth(sample)
         
         # Tối ưu Token: Chỉ lấy JSON string gọn nhất + Token kết thúc
