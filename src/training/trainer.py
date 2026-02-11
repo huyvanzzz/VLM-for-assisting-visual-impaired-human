@@ -19,7 +19,7 @@ class VLMTrainer:
         from ..models.model_registry import build_model
         from ..data.wad_dataset import build_dataset
         from .callbacks import MemoryOptimizationCallback, ExperimentTrackingCallback
-        from ..data.collator import VLMDataCollator
+        from ..data.data_collator import VLMDataCollator
         
         # Build model
         print("[1] Building model...")
