@@ -5,12 +5,14 @@ import torch
 from tqdm.auto import tqdm
 import gc
 import os
+import warnings
 
 class VLMTrainer:
     """High-level training orchestration"""
     
     def __init__(self, config_path: str):
-        
+        warnings.filterwarnings('ignore', message='.*Unused or unrecognized kwargs.*')
+
         os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
@@ -22,7 +24,6 @@ class VLMTrainer:
     
     def setup(self):
         """Setup model, data, trainer"""
-        self._clear_memory()
 
         from ..models.model_registry import build_model
         from ..data.wad_dataset import build_dataset
@@ -105,7 +106,6 @@ class VLMTrainer:
         print("STARTING TRAINING")
         print("="*80 + "\n")
         
-        self._clear_memory() 
         # Trainer đã có tqdm built-in, chỉ cần đảm bảo disable_tqdm=False
         self.trainer.train()
         
