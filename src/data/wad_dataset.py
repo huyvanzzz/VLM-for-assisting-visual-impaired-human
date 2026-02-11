@@ -17,7 +17,7 @@ class WADDataset(Dataset):
         frame_index: dict,
         bbox_by_folder: dict,
         processor,
-        tokenizer,  
+        tokenizer,
         split: str = 'train',
         num_frames: int = 1,
         image_size: tuple = (384, 384)
@@ -106,7 +106,7 @@ class WADDataset(Dataset):
         polm_list = self._load_bboxes(frame_path, frame_ids)
         
         # 2. Tạo Text
-        prompt_text = construct_prompt(polm_list, num_images=self.num_frames)
+        prompt_text = construct_prompt(polm_list, num_images=self.num_frames, tokens_per_image=2052)
         ground_truth_dict = map_metadata_to_ground_truth(sample)
         
         # Tối ưu Token: Chỉ lấy JSON string gọn nhất + Token kết thúc
