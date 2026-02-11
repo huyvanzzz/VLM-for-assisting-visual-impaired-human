@@ -40,17 +40,10 @@ class GroundTruthData:
 def construct_prompt(
     polm_list: List[POLMData], 
     num_images: int = 1,
-    tokens_per_image: int = None
 ) -> str:
     """Construct model input prompt"""
-    
-    if tokens_per_image is None:
-        raise ValueError("tokens_per_image is required!")
-    
     polm_text = "\n".join([polm.to_text() for polm in polm_list])
-    
-    total_tokens = num_images * tokens_per_image
-    image_tokens = "<image>" * total_tokens
+    image_tokens = "\n".join(["<image>"] * num_images)
     
     prompt = f"""{image_tokens}
 You are a navigation assistant for blind people.
