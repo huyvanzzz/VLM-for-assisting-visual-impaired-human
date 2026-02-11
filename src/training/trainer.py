@@ -3,11 +3,15 @@ from typing import Dict, Any
 import yaml
 import torch
 from tqdm.auto import tqdm
+import gc
+import os
 
 class VLMTrainer:
     """High-level training orchestration"""
     
     def __init__(self, config_path: str):
+        
+        os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
         
@@ -18,6 +22,8 @@ class VLMTrainer:
     
     def setup(self):
         """Setup model, data, trainer"""
+        self._clear_memory()
+
         from ..models.model_registry import build_model
         from ..data.wad_dataset import build_dataset
         from .callbacks import MemoryOptimizationCallback, ExperimentTrackingCallback
@@ -69,7 +75,10 @@ class VLMTrainer:
                 
             # Callbacks
             callbacks = [
-                MemoryOptimizationCallback(),
+                MemoryOptimizationCallback(
+                    clear_cache_steps=25,  # Có thể giảm xuống 10 nếu vẫn OOM
+                    log_memory_steps=10
+                ),
             ]
             
             if self.config['tracking']['enabled']:
@@ -95,27 +104,33 @@ class VLMTrainer:
         print("STARTING TRAINING")
         print("="*80 + "\n")
         
+        self._clear_memory() 
         # Trainer đã có tqdm built-in, chỉ cần đảm bảo disable_tqdm=False
         self.trainer.train()
         
         print("\n✓ Training complete!")
-    
+        self._clear_memory()
+
     def evaluate(self):
         """Run evaluation"""
         print("\n" + "="*80)
         print("EVALUATION")
         print("="*80 + "\n")
-        
+        self._clear_memory()
         results = self.trainer.evaluate()
         self.results = results
         
         print(results)
+        self._clear_memory() 
         return results
     
     def save(self, output_path: str):
+
+        self._clear_memory()
         """Save model"""
         print(f"\nSaving model to {output_path}...")
         with tqdm(total=1, desc="Saving model") as pbar:
             self.trainer.save_model(output_path)
             pbar.update(1)
         print(f"✓ Model saved to {output_path}")
+        self._clear_memory()
