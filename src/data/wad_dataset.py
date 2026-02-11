@@ -178,6 +178,20 @@ class WADDataset(Dataset):
             'labels': labels
         }
         
+        image_token_id = self.tokenizer.convert_tokens_to_ids("<image>")
+
+        num_image_tokens = (input_ids == image_token_id).sum().item()
+
+        print("\n[DEBUG ALIGNMENT CHECK]")
+        print("Total input_ids length:", len(input_ids))
+        print("Image token id:", image_token_id)
+        print("Number of <image> tokens in text:", num_image_tokens)
+
+        print("Pixel_values shape:", pixel_values.shape)
+
+        if 'image_grid_thw' in inputs:
+            print("image_grid_thw:", inputs['image_grid_thw'])
+
         # Copy các thông tin phụ (quan trọng cho model Qwen/LLaVA)
         if 'image_sizes' in inputs:
             return_dict['image_sizes'] = inputs['image_sizes'].squeeze(0)

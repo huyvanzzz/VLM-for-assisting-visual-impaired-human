@@ -57,14 +57,14 @@ class VLMTrainer:
             optim=self.config['training']['optimizer']
         )
         
-        # data_collator = VLMDataCollator()
+        data_collator = VLMDataCollator()
         # Callbacks
-        # callbacks = [
-        #     MemoryOptimizationCallback(),
-        # ]
+        callbacks = [
+            MemoryOptimizationCallback(),
+        ]
         
-        # if self.config['tracking']['enabled']:
-        #     callbacks.append(ExperimentTrackingCallback(self.config))
+        if self.config['tracking']['enabled']:
+            callbacks.append(ExperimentTrackingCallback(self.config))
         
         # Create trainer
         self.trainer = Trainer(
@@ -73,8 +73,8 @@ class VLMTrainer:
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             tokenizer=vlm.tokenizer,
-            # data_collator=data_collator,
-            # callbacks=callbacks
+            data_collator=data_collator,
+            callbacks=callbacks
         )
         
         print("✓ Setup complete!")
