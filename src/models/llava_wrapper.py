@@ -62,7 +62,6 @@ class LLaVAModel(BaseVLM):
                 "size": {"height": vision_cfg['image_size'][0], "width": vision_cfg['image_size'][1]},
                 "do_resize": True,
                 "do_center_crop": False,
-                "do_image_splitting": False
             },
             use_fast=True,
         )

@@ -20,7 +20,7 @@ class WADDataset(Dataset):
         tokenizer,
         split: str = 'train',
         num_frames: int = 1,
-        image_size: tuple = (336, 336)
+        image_size: tuple = (384, 384)
     ):
         self.metadata = metadata_dataset[split]
         self.frame_index = frame_index
