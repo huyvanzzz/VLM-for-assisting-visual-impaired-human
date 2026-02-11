@@ -124,7 +124,7 @@ class WADDataset(Dataset):
         
         debug_pixel_values = inputs['pixel_values']
         
-        # In ra màn hình console
+        # In ra màn hình console (GIỮ NGUYÊN CỦA BẠN)
         print(f"\n[DEBUG IMAGE INFO]")
         print(f" - Shape gốc: {debug_pixel_values.shape}")
         # Shape thường là: (Batch, Num_Crops, Channels, Height, Width)
@@ -138,11 +138,30 @@ class WADDataset(Dataset):
             print(f" - Kích thước mỗi mảnh: {h} x {w}")
         else:
             print(f" - Shape lạ: {debug_pixel_values.shape}")
+            
         # Lấy các Tensor ra khỏi batch dimension (vì processor trả về batch=1)
         prompt_input_ids = inputs['input_ids'].squeeze(0)
         prompt_attention_mask = inputs['attention_mask'].squeeze(0)
         pixel_values = inputs['pixel_values'].squeeze(0)
         
+        # ==========================================================================
+        # [FIX LỖI] CHÈN CODE SỬA LỖI TẠI ĐÂY (Trước khi ghép chuỗi)
+        # ==========================================================================
+        image_token_id = self.processor.tokenizer.convert_tokens_to_ids("<image>")
+        current_img_tokens = (prompt_input_ids == image_token_id).sum().item()
+        
+        # Nếu là 3 mảnh (Features=2052) mà Token chỉ có 2051 -> Bù 1 token
+        if len(pixel_values.shape) == 4 and pixel_values.shape[0] == 3:
+            if current_img_tokens == 2051:
+                print(" -> [AUTO-FIX] Phát hiện 2051 tokens (thiếu 1). Đang bù thêm 1 token <image>...")
+                extra_token = torch.tensor([image_token_id], dtype=torch.long)
+                extra_mask = torch.tensor([1], dtype=torch.long)
+                
+                # Nối vào đuôi Prompt
+                prompt_input_ids = torch.cat([prompt_input_ids, extra_token], dim=0)
+                prompt_attention_mask = torch.cat([prompt_attention_mask, extra_mask], dim=0)
+        # ==========================================================================
+
         # 4. Tokenize Answer (Câu trả lời)
         answer_tokens = self.tokenizer(
             answer_text,
@@ -178,6 +197,7 @@ class WADDataset(Dataset):
             'labels': labels
         }
         
+        # (GIỮ NGUYÊN CODE IN CỦA BẠN ĐỂ CHECK LẠI)
         image_token_id = self.tokenizer.convert_tokens_to_ids("<image>")
 
         num_image_tokens = (input_ids == image_token_id).sum().item()
@@ -185,7 +205,8 @@ class WADDataset(Dataset):
         print("\n[DEBUG ALIGNMENT CHECK]")
         print("Total input_ids length:", len(input_ids))
         print("Image token id:", image_token_id)
-        print("Number of <image> tokens in text:", num_image_tokens)
+        # Lúc này nếu fix thành công, dòng này sẽ in ra 2052
+        print("Number of <image> tokens in text:", num_image_tokens) 
 
         print("Pixel_values shape:", pixel_values.shape)
 
