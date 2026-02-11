@@ -42,21 +42,59 @@ class WADDataset(Dataset):
     def __len__(self):
         return len(self.metadata)
 
-    def _get_tokens_per_image(self,image_size: tuple) -> int:
+    def _get_tokens_per_image(self, image_size: tuple) -> int:
         """Calculate number of <image> tokens per image"""
         import PIL.Image
+        
         dummy_img = PIL.Image.new('RGB', image_size)
-        fake_prompt = "<image>" * 3000
-        test_inputs = self.processor(
-            text=fake_prompt,
+        
+        # ✅ Bước 1: Process ảnh để lấy pixel_values
+        # Chỉ process image, KHÔNG cần text
+        img_features = self.processor.image_processor(
             images=[dummy_img],
             return_tensors="pt"
         )
         
-        image_token_id = self.processor.tokenizer.convert_tokens_to_ids("<image>")
-        num_tokens = (test_inputs['input_ids'] == image_token_id).sum().item()
+        pixel_values = img_features['pixel_values']
+        print(f"[DEBUG] pixel_values.shape = {pixel_values.shape}")
         
-        return num_tokens
+        # ✅ Bước 2: Tính từ shape thực tế
+        # Shape: [batch, num_crops, channels, height, width]
+        # Ví dụ: torch.Size([1, 3, 3, 384, 384])
+        
+        if len(pixel_values.shape) == 5:
+            batch_size = pixel_values.shape[0]
+            num_crops = pixel_values.shape[1]
+            channels = pixel_values.shape[2]
+            crop_h = pixel_values.shape[3]
+            crop_w = pixel_values.shape[4]
+            
+            # Lấy patch_size từ processor
+            patch_size = getattr(self.processor.image_processor, 'patch_size', 14)
+            
+            # Tính số patches mỗi crop
+            num_patches_h = crop_h // patch_size
+            num_patches_w = crop_w // patch_size
+            tokens_per_crop = num_patches_h * num_patches_w
+            
+            # Tổng tokens cho 1 ảnh
+            total_tokens = tokens_per_crop * num_crops
+            
+            print(f"[INFO] Calculated tokens_per_image:")
+            print(f"  - num_crops: {num_crops}")
+            print(f"  - crop_size: {crop_h}x{crop_w}")
+            print(f"  - patch_size: {patch_size}")
+            print(f"  - tokens_per_crop: {tokens_per_crop}")
+            print(f"  - total_tokens: {total_tokens}")
+            
+            return total_tokens
+        
+        else:
+            # Fallback nếu shape không như expected
+            raise ValueError(
+                f"Unexpected pixel_values shape: {pixel_values.shape}. "
+                f"Expected 5D tensor [batch, num_crops, channels, height, width]"
+            )
 
     def _load_frames(self, frame_path: str, frame_ids: List[int]) -> List[Image.Image]:
         """Load và xử lý ảnh (Padding luôn tại đây)"""
