@@ -24,6 +24,7 @@ class VLMTrainer:
     
     def setup(self):
         """Setup model, data, trainer"""
+        self._clear_memory()
 
         from ..models.model_registry import build_model
         from ..data.wad_dataset import build_dataset
@@ -59,7 +60,6 @@ class VLMTrainer:
                 warmup_steps=int(self.config['training']['warmup_steps']),
                 weight_decay=float(self.config['training']['weight_decay']),
                 fp16=self.config['training']['fp16'],
-                group_by_length=True,
                 gradient_checkpointing=self.config['training']['gradient_checkpointing'],
                 logging_steps=self.config['training']['logging_steps'],
                 eval_steps=self.config['training']['eval_steps'],
@@ -106,6 +106,7 @@ class VLMTrainer:
         print("STARTING TRAINING")
         print("="*80 + "\n")
         
+        self._clear_memory() 
         # Trainer đã có tqdm built-in, chỉ cần đảm bảo disable_tqdm=False
         self.trainer.train()
         
