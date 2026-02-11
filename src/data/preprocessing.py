@@ -40,7 +40,7 @@ class GroundTruthData:
 def construct_prompt(
     polm_list: List[POLMData],
     num_images: int = 1,
-    tokens_per_image: int = 2052
+    tokens_per_image: int = None
 ) -> str:
     """Construct model input prompt"""
     

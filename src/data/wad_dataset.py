@@ -17,7 +17,7 @@ class WADDataset(Dataset):
         frame_index: dict,
         bbox_by_folder: dict,
         processor,
-        tokenizer,  
+        tokenizer,
         split: str = 'train',
         num_frames: int = 1,
         image_size: tuple = (384, 384)
@@ -37,7 +37,7 @@ class WADDataset(Dataset):
         self.tokens_per_image = self._get_tokens_per_image(self.image_size)
         print(f"[DEBUG] tokens_per_image = {self.tokens_per_image}")  # ← Kiểm tra giá trị
     
-        if self.tokens_per_image == 0:
+        if self.tokens_per_image != 0:
             raise ValueError("tokens_per_image is 0! Check processor config!")
     def __len__(self):
         return len(self.metadata)
