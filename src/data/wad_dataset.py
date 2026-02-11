@@ -46,9 +46,9 @@ class WADDataset(Dataset):
         """Calculate number of <image> tokens per image"""
         import PIL.Image
         dummy_img = PIL.Image.new('RGB', image_size)
-        
+        fake_prompt = "<image>" * 3000
         test_inputs = self.processor(
-            text="",
+            text=fake_prompt,
             images=[dummy_img],
             return_tensors="pt"
         )
