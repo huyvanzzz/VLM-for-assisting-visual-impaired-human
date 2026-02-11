@@ -33,9 +33,7 @@ class WADDataset(Dataset):
         
         # Cấu hình Tokenizer để tiết kiệm token
         self.tokenizer.padding_side = "right" # Quan trọng cho training
-    
-        if self.tokens_per_image == 0:
-            raise ValueError("tokens_per_image is 0! Check processor config!")
+        self.tokenizer.truncation_side = "right" # Quan trọng cho training
     def __len__(self):
         return len(self.metadata)
 
