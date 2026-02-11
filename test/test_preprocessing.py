@@ -1,4 +1,9 @@
 # File: test_preprocessing.py
+#!/usr/bin/env python3
+
+import argparse
+import sys
+sys.path.append('.')
 import unittest
 from src.data.preprocessing import map_metadata_to_ground_truth, construct_prompt, POLMData
 

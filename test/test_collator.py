@@ -1,4 +1,9 @@
 # File: test_collator.py
+#!/usr/bin/env python3
+
+import argparse
+import sys
+sys.path.append('.')
 import torch
 import unittest
 from src.data.data_collator import VLMDataCollator
