@@ -65,8 +65,8 @@ class VLMTrainer:
                 disable_tqdm=False,  # Bật tqdm của Trainer
             )
             
-            data_collator = VLMDataCollator()
-            
+            data_collator = VLMDataCollator(tokenizer=vlm.tokenizer)
+                
             # Callbacks
             callbacks = [
                 MemoryOptimizationCallback(),

@@ -4,56 +4,52 @@ from typing import List, Dict
 class VLMDataCollator:
     """Custom data collator for VLM models"""
     
-    def __init__(self):
+    # [FIX 1]: Phải truyền tokenizer vào để lấy đúng ID padding
+    def __init__(self, tokenizer):
+        self.tokenizer = tokenizer 
         self._debug_printed = False
     
     def __call__(self, batch: List[Dict]) -> Dict:
         """Collate batch with proper padding"""
         
-        max_input_len = max([item['input_ids'].shape[0] for item in batch])
-        max_label_len = max([item['labels'].shape[0] for item in batch])
+        # Lọc bỏ mẫu lỗi (None) nếu có
+        batch = [x for x in batch if x is not None]
+        if len(batch) == 0: return {}
+
+        # --- PHẦN XỬ LÝ TEXT (Sửa để dùng đúng pad_token_id) ---
+        input_ids_list = [item['input_ids'] for item in batch]
+        labels_list = [item['labels'] for item in batch]
+        attention_mask_list = [item['attention_mask'] for item in batch]
         
-        # Pad text
-        input_ids = torch.stack([
-            torch.nn.functional.pad(item['input_ids'], (0, max_input_len - item['input_ids'].shape[0]))
-            for item in batch
-        ])
+        # Dùng pad_sequence của PyTorch cho an toàn và chính xác
+        # [FIX 2]: Thay vì pad=0, dùng self.tokenizer.pad_token_id
+        input_ids = torch.nn.utils.rnn.pad_sequence(
+            input_ids_list, 
+            batch_first=True, 
+            padding_value=self.tokenizer.pad_token_id
+        )
         
-        attention_mask = torch.stack([
-            torch.nn.functional.pad(item['attention_mask'], (0, max_input_len - item['attention_mask'].shape[0]))
-            for item in batch
-        ])
+        # Attention mask pad bằng 0 là đúng (giữ nguyên logic, đổi cách viết cho gọn)
+        attention_mask = torch.nn.utils.rnn.pad_sequence(
+            attention_mask_list, 
+            batch_first=True, 
+            padding_value=0
+        )
         
-        labels = torch.stack([
-            torch.nn.functional.pad(
-                item['labels'], 
-                (0, max_label_len - item['labels'].shape[0]), 
-                value=-100
-            )
-            for item in batch
-        ])
+        # Labels pad bằng -100 là đúng
+        labels = torch.nn.utils.rnn.pad_sequence(
+            labels_list, 
+            batch_first=True, 
+            padding_value=-100
+        )
         
-        # Pixel values
+        # --- PHẦN XỬ LÝ ẢNH (Pixel Values) ---
+        # [FIX 3]: Bỏ đoạn logic "Check shape consistency" và padding pixel thủ công.
+        # Lý do: Qwen2-VL nối đuôi các patch ảnh lại (flatten), không cần các ảnh phải cùng kích thước tensor.
+        # Việc padding pixel sẽ làm lệch 'image_grid_thw'.
+        
         pixel_values_list = [item['pixel_values'] for item in batch]
-        
-        # Debug first batch
-        if not self._debug_printed:
-            for i, pv in enumerate(pixel_values_list):
-                print(f"  Sample {i} pixel_values: {pv.shape}")
-            self._debug_printed = True
-        
-        # Check shape consistency
-        shapes = [pv.shape for pv in pixel_values_list]
-        if len(set(shapes)) > 1:
-            print(f"Inconsistent pixel_values shapes: {shapes}")
-            max_tiles = max([pv.shape[0] for pv in pixel_values_list])
-            pixel_values_list = [
-                torch.nn.functional.pad(pv, (0, 0, 0, 0, 0, 0, 0, max_tiles - pv.shape[0]))
-                if pv.shape[0] < max_tiles else pv[:max_tiles]
-                for pv in pixel_values_list
-            ]
-        
-        pixel_values = torch.cat(pixel_values_list, dim=0)
+        pixel_values = torch.cat(pixel_values_list, dim=0) # Chỉ cần cat lại là xong
         
         # Build result
         result = {
@@ -63,12 +59,13 @@ class VLMDataCollator:
             'labels': labels
         }
         
-        # Handle image_sizes
+        # --- PHẦN CÒN LẠI (Giữ nguyên của bạn) ---
+        
+        # Handle image_sizes (Giữ nguyên logic của bạn)
         image_sizes = []
         for item in batch:
             if 'image_sizes' in item:
                 sizes = item['image_sizes']
-                
                 if isinstance(sizes, torch.Tensor):
                     if sizes.dim() == 1:
                         image_sizes.append(tuple(sizes.tolist()))
@@ -84,16 +81,14 @@ class VLMDataCollator:
         if image_sizes:
             result['image_sizes'] = image_sizes
         
-        # Handle image_grid_thw
+        # Handle image_grid_thw (Giữ nguyên logic của bạn - cái này viết đúng rồi)
         if 'image_grid_thw' in batch[0]:
             try:
                 grid_list = []
                 for item in batch:
                     grid = item['image_grid_thw']
-                    
                     if grid.dim() == 1:
                         grid = grid.unsqueeze(0)
-                    
                     grid_list.append(grid)
                 
                 result['image_grid_thw'] = torch.cat(grid_list, dim=0)
