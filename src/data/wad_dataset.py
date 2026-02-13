@@ -144,14 +144,46 @@ class WADDataset(Dataset):
         prompt_attention_mask = inputs['attention_mask'].squeeze(0)
         pixel_values = inputs['pixel_values'].squeeze(0)
         
+        if not hasattr(self, '_has_printed_debug'): 
+            print("\n" + "!"*20 + " DEBUG TẠI GETITEM " + "!"*20)
+            
+            # 1. Kiểm tra token đầu tiên xem có phải là BOS (<s>) không?
+            first_id = prompt_input_ids[0].item()
+            first_token = self.tokenizer.decode([first_id])
+            print(f"👉 Token đầu tiên: ID={first_id} | Text='{first_token}'")
+            
+            # 2. Đếm số lượng <image> thực tế
+            img_id = self.processor.tokenizer.convert_tokens_to_ids("<image>")
+            count_img = (prompt_input_ids == img_id).sum().item()
+            print(f"👉 Số lượng thẻ <image> trong Text: {count_img}")
+            
+            # 3. Đếm số mảnh ảnh (Crops)
+            num_crops = pixel_values.shape[0] # Giả sử shape là (N_crops, 3, H, W)
+            print(f"👉 Số lượng mảnh ảnh (Pixel Values): {num_crops}")
+            
+            # 4. KẾT LUẬN
+            if first_token in ["<s>", "<|begin_of_text|>", "[CLS]"]:
+                print("⚠️  CẢNH BÁO: Tokenizer tự động thêm BOS token vào đầu!")
+                print("    => Đây chính là lý do bạn bị lệch 1 token (2051 vs 2052)")
+            elif count_img != num_crops:
+                print(f"⚠️  LỆCH: Text có {count_img} chỗ trống, nhưng Ảnh có {num_crops} mảnh.")
+            else:
+                print("✅  Dữ liệu khớp nhau hoàn hảo!")
+                
+            print("!"*60 + "\n")
+            self._has_printed_debug = True
+
         # ==========================================================================
         # [FIX LỖI] CHÈN CODE SỬA LỖI TẠI ĐÂY (Trước khi ghép chuỗi)
         # ==========================================================================
         image_token_id = self.processor.tokenizer.convert_tokens_to_ids("<image>")
         current_img_tokens = (prompt_input_ids == image_token_id).sum().item()
         
+        print(f"\n[DEBUG ALIGNMENT CHECK - AUTO-FIX]")
+        print("pixel_values shape:", pixel_values.shape)
+        print("pixel_values:", pixel_values.shape[0])
         # Nếu là 3 mảnh (Features=2052) mà Token chỉ có 2051 -> Bù 1 token
-        if len(pixel_values.shape) == 4 and pixel_values.shape[0] == 3:
+        if len(pixel_values.shape) == 4:
             # print(" -> [AUTO-FIX] Phát hiện 2051 tokens (thiếu 1). Đang bù thêm 1 token <image>...")
             extra_token = torch.tensor([image_token_id], dtype=torch.long)
             extra_mask = torch.tensor([1], dtype=torch.long)
