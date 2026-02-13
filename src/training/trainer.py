@@ -38,6 +38,48 @@ class VLMTrainer:
             pbar.set_description("Building model...")
             vlm = build_model(self.config)
             self.model = vlm.model
+            print("\n" + "="*40)
+            print("🩺 [SANITY CHECK] Kiểm tra cấu hình Model")
+            try:
+                vision_config = self.model.config.vision_config
+                print(f" - Vision Config: {vision_config}")
+                
+                # Check các từ khóa nhạy cảm
+                if hasattr(vision_config, 'use_cls_token') and vision_config.use_cls_token:
+                    print(" ⚠️ CẢNH BÁO: Model này DÙNG CLS TOKEN (+1 token).")
+                
+                # Test thực tế bằng cách chạy thử 1 ảnh rỗng qua Vision Tower
+                if hasattr(self.model, "vision_tower") or hasattr(self.model.model, "vision_tower"):
+                    print(" - Đang chạy thử Vision Tower để đếm token...")
+                    # Tạo ảnh giả
+                    dummy_pixel = torch.zeros(1, 3, vision_config.image_size, vision_config.image_size).to(self.model.device, dtype=self.model.dtype)
+                    
+                    # Lấy module vision
+                    tower = self.model.vision_tower if hasattr(self.model, "vision_tower") else self.model.model.vision_tower
+                    
+                    with torch.no_grad():
+                        # Chạy thử
+                        # Lưu ý: Code này tùy thuộc loại model (Qwen/Llava) mà output khác nhau chút
+                        # Nhưng thường trả về (Batch, Num_Tokens, Dim)
+                        features = tower(dummy_pixel)
+                        if isinstance(features, list) or isinstance(features, tuple):
+                            features = features[-1] # Lấy layer cuối
+                            
+                    num_tokens = features.shape[1]
+                    grid = (vision_config.image_size // vision_config.patch_size) ** 2
+                    
+                    print(f"   + Lý thuyết (Grid): {grid} tokens")
+                    print(f"   + Thực tế (Vision): {num_tokens} tokens")
+                    
+                    if num_tokens == grid + 1:
+                        print(" -> 🚨 KẾT LUẬN: Model này CHẮC CHẮN sinh thêm 1 token (CLS/Global).")
+                        print(" -> Hãy đảm bảo bạn đã bật code FIX LỖI trong WADDataset!")
+                    else:
+                        print(" -> ✅ Model có vẻ khớp số lượng token.")
+                        
+            except Exception as e:
+                print(f" - (Không thể check tự động: {e})")
+            print("="*40 + "\n")
             pbar.update(1)
             
             # Build dataset

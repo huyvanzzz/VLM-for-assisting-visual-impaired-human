@@ -143,34 +143,12 @@ class WADDataset(Dataset):
         prompt_input_ids = inputs['input_ids'].squeeze(0)
         prompt_attention_mask = inputs['attention_mask'].squeeze(0)
         pixel_values = inputs['pixel_values'].squeeze(0)
-
+        
         # ==========================================================================
         # [FIX LỖI] CHÈN CODE SỬA LỖI TẠI ĐÂY (Trước khi ghép chuỗi)
         # ==========================================================================
         image_token_id = self.processor.tokenizer.convert_tokens_to_ids("<image>")
-        num_text_tokens = (prompt_input_ids == image_token_id).sum().item()
-        
-        # 2. Đếm số người (Số mảnh ảnh thực tế model nhìn thấy)
-        # pixel_values shape thường là: (Số_lượng_mảnh, Channels, H, W)
-        num_vision_patches = pixel_values.shape[0] 
-        
-        # 3. Tính độ lệch
-        diff = num_vision_patches - num_text_tokens
-        
-        # 4. In ra bằng chứng (Chỉ in khi có lệch để đỡ rác màn hình)
-        if diff != 0:
-            print(f"\n==========================================")
-            print(f"🕵️ [CHECKER] PHÁT HIỆN LỆCH TOKEN TẠI INDEX {idx}")
-            print(f"   - Text Prompt có:   {num_text_tokens} thẻ <image>")
-            print(f"   - Pixel Values có:  {num_vision_patches} mảnh ảnh (patches)")
-            print(f"   - Độ lệch (Diff):   {diff}")
-            
-            if diff == 1:
-                print(f"   -> KẾT LUẬN: Thừa đúng 1 mảnh. Đây chính là GLOBAL VIEW (hoặc CLS context).")
-                print(f"   -> Kích thước mảnh thừa (cái cuối cùng): {pixel_values[-1].shape}")
-            else:
-                print(f"   -> KẾT LUẬN: Lệch {diff} (Có thể do nhiều frame hoặc lỗi logic khác).")
-            print(f"==========================================\n")
+        current_img_tokens = (prompt_input_ids == image_token_id).sum().item()
         
         print(f"\n[DEBUG ALIGNMENT CHECK - AUTO-FIX]")
         print("pixel_values shape:", pixel_values.shape)
