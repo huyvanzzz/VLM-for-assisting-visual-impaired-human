@@ -95,5 +95,4 @@ class VLMDataCollator:
             
             except Exception as e:
                 print(f"Warning: image_grid_thw collate failed: {e}")
-        print(result)
         return result

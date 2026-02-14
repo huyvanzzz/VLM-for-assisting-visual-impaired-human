@@ -183,7 +183,7 @@ class WADDataset(Dataset):
             return_dict['image_sizes'] = inputs['image_sizes'].squeeze(0)
         if 'image_grid_thw' in inputs:
             return_dict['image_grid_thw'] = inputs['image_grid_thw'].squeeze(0)
-        print(return_dict)
+            
         return return_dict
 
 
