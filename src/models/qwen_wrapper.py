@@ -1,5 +1,5 @@
 from .base_vlm import BaseVLM
-from transformers import AutoConfig, AutoProcessor, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoConfig, AutoProcessor, AutoTokenizer, AutoModelForVision2Seq, BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 import torch
 
@@ -26,7 +26,7 @@ class QwenVLModel(BaseVLM):
         config.use_cache = False
         
         # Qwen-VL uses AutoModelForCausalLM
-        self.model = AutoModelForCausalLM.from_pretrained(
+        self.model = AutoModelForVision2Seq.from_pretrained(
             self.config['model']['name'],
             quantization_config=bnb_config,
             config=config,
