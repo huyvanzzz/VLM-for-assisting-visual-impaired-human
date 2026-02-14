@@ -10,21 +10,21 @@ model:
   name: "Qwen/Qwen2-VL-2B-Instruct"
   
   lora:
-  enabled: true
-  r: 16                    # OK
-  alpha: 16               # Thường dùng alpha = 32 (2*r)
-  dropout: 0.05           # OK
-  target_modules: 
-    - "q_proj"
-    - "k_proj"
-    - "v_proj"
-    - "o_proj"
-    # Tùy chọn thêm:
-    # - "gate_proj"
-    # - "up_proj"
-    # - "down_proj"
-  bias: "none"
-  task_type: "CAUSAL_LM"
+    enabled: true
+    r: 16                    # OK
+    alpha: 16               # Thường dùng alpha = 32 (2*r)
+    dropout: 0.05           # OK
+    target_modules: 
+      - "q_proj"
+      - "k_proj"
+      - "v_proj"
+      - "o_proj"
+      # Tùy chọn thêm:
+      # - "gate_proj"
+      # - "up_proj"
+      # - "down_proj"
+    bias: "none"
+    task_type: "CAUSAL_LM"
   
   quantization:
     enabled: true
