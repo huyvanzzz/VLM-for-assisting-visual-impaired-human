@@ -50,6 +50,7 @@ training:
   batch_size: 1
   gradient_accumulation_steps: 1
   learning_rate: 2e-4
+  warmup_steps: 100
   warmup_ratio: 0.03
   weight_decay: 0.01
   bf16: true
