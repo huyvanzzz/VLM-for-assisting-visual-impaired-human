@@ -228,6 +228,15 @@ def build_dataset(config: Dict, processor, tokenizer):
     else:
         raise FileNotFoundError(f"Frame index not found at {index_file}. Run build_frame_index.py first.")
     
+    architecture = config['model']['architecture']
+    
+    if architecture == 'qwen':
+        # Qwen dùng dynamic resolution
+        image_size = None
+        print(f"✓ Using dynamic resolution for Qwen")
+    else:
+        # Tất cả model khác giữ nguyên logic cũ
+        image_size = tuple(config['model']['vision']['image_size'])
     # Create datasets
     train_dataset = WADDataset(
         metadata_dataset=metadata,
@@ -237,7 +246,7 @@ def build_dataset(config: Dict, processor, tokenizer):
         tokenizer=tokenizer,
         split='train',
         num_frames=config['data']['num_frames'],
-        image_size=tuple(config['model']['vision']['image_size'])
+        image_size=image_size
     )
     
     # Train/val split
