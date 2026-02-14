@@ -35,8 +35,8 @@ model:
   
   vision:
     freeze_encoder: true
-    min_pixels: 256 * 28 * 28
-    max_pixels: 1280 * 28 * 28
+    min_pixels: 200704
+    max_pixels: 1003520
 
 data:
   name: "minhdang0901/WAD_Images"
