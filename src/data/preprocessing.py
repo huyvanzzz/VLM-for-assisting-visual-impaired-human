@@ -42,12 +42,17 @@ class GroundTruthData:
 def construct_prompt(
     polm_list: List[POLMData],
     num_images: int = 1,
-) -> List[Dict[str, Any]]: # <--- Thay đổi kiểu trả về gợi ý (Type hint)
+    metadata: Dict = None,  # ← THÊM
+) -> List[Dict[str, Any]]:
     """
     Construct model input messages (Updated for apply_chat_template)
     """
     
     polm_text = "\n".join([polm.to_text() for polm in polm_list])
+    
+    question = ""
+    if metadata and metadata.get('QA') and metadata['QA'].get('Q'):
+        question = metadata['QA']['Q']
     
     # Tạo nội dung text hướng dẫn (Prompt)
     text_content = f"""You are a navigation assistant for blind people.
@@ -58,9 +63,14 @@ Detected objects in the scene:
 Follow Chain-of-Thought reasoning:
 1. Perception: What objects and environment do you see?
 2. Context: Location type, weather, traffic level?
-3. Decision: What guidance should be given?
+3. Decision: What guidance should be given?"""
 
-Respond in JSON: {{"location": "...", "weather": "...", "traffic": "...", "scene": "...", "instruction": "..."}}"""
+    if question != "":
+        text_content += f"\n\nQuestion: {question}\nAnswer the question based on the scene."
+
+    text_content += """
+
+Respond in JSON: {"location": "...", "weather": "...", "traffic": "...", "scene": "...", "instruction": "..."}"""
 
     # Tạo list content theo chuẩn OpenAI/HuggingFace
     content = []
@@ -121,10 +131,10 @@ def map_metadata_to_ground_truth(metadata: Dict) -> GroundTruthData:
     scene = metadata.get('summary', '')
     
     # Instruction: alter or QA answer
-    if metadata.get('alter'):
-        instruction = metadata['alter']
-    elif metadata.get('QA') and isinstance(metadata['QA'], dict):
+    if metadata.get('QA') and isinstance(metadata['QA'], dict):
         instruction = metadata['QA'].get('A', '')
+    elif metadata.get('alter'):
+        instruction = metadata['alter']
     else:
         instruction = ''
     

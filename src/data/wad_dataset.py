@@ -20,7 +20,7 @@ class WADDataset(Dataset):
         tokenizer,
         split: str = 'train',
         num_frames: int = 1,
-        image_size: tuple = (384, 384)
+        image_size: tuple = None
     ):
         self.metadata = metadata_dataset[split]
         self.frame_index = frame_index
@@ -108,7 +108,7 @@ class WADDataset(Dataset):
         # 2. Tạo Text Prompt
         # ======================================================================
         # Bước A: Lấy cấu trúc messages (Vẫn dùng tên hàm cũ construct_prompt)
-        messages = construct_prompt(polm_list, num_images=self.num_frames)
+        messages = construct_prompt(polm_list, num_images=self.num_frames, metadata=sample)
         
         # Bước B: Dùng apply_chat_template để sinh chuỗi text chuẩn
         # Hàm này sẽ tự động thêm \n sau mỗi <image>, giải quyết vụ lệch token
