@@ -135,10 +135,8 @@ class WADDataset(Dataset):
         prompt_attention_mask = inputs['attention_mask'].squeeze(0)
         pixel_values = inputs['pixel_values'].squeeze(0)
         
-        print(f"Prompt tokens: {len(prompt_input_ids)}")
         image_token_id = self.processor.image_token_id
         num_image_tokens = (prompt_input_ids == image_token_id).sum().item()
-        print(f"Image tokens: {num_image_tokens} (expected: {self.num_frames})")
         # ======================================================================
         # QUAN TRỌNG: ĐÃ BỎ CODE FIX THỦ CÔNG (torch.cat)
         # Vì apply_chat_template đã tự thêm \n nên số token giờ sẽ KHỚP 100%.
@@ -153,10 +151,8 @@ class WADDataset(Dataset):
             max_length=None
         )
         answer_input_ids = answer_tokens['input_ids'].squeeze(0)
-        print(f"Answer tokens: {len(answer_input_ids)}")
         # 5. Ghép chuỗi (Training logic)
         input_ids = torch.cat([prompt_input_ids, answer_input_ids], dim=0)
-        print(f"Tổng số token (input_ids): {input_ids.shape[0]}")
         attention_mask = torch.cat([
             prompt_attention_mask,
             torch.ones_like(answer_input_ids)
@@ -180,7 +176,6 @@ class WADDataset(Dataset):
             return_dict['image_sizes'] = inputs['image_sizes'].squeeze(0)
         if 'image_grid_thw' in inputs:
             return_dict['image_grid_thw'] = inputs['image_grid_thw'].squeeze(0)
-        print(return_dict)
         return return_dict
 
 
