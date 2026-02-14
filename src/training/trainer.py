@@ -73,7 +73,7 @@ class VLMTrainer:
                 bf16=self.config['training'].get('bf16', False),
                 gradient_checkpointing=self.config['training']['gradient_checkpointing'],
                 logging_steps=self.config['training']['logging_steps'],
-                evaluation_strategy=self.config['training'].get('evaluation_strategy', 'steps'),
+                eval_strategy=self.config['training'].get('eval_strategy', 'steps'),
                 eval_steps=self.config['training']['eval_steps'],
                 save_steps=self.config['training']['save_steps'],
                 save_total_limit=self.config['training']['save_total_limit'],

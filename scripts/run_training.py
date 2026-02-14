@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 Main training script
-Usage: 
+Usage:
   - Train from scratch: python scripts/run_training.py --config configs/llava_config.yaml
-  - Resume training: python scripts/run_training.py --config configs/llava_config.yaml --resume ./output/checkpoint-500
-  - Load checkpoint và train tiếp: python scripts/run_training.py --config configs/llava_config.yaml --checkpoint ./output/checkpoint-500
+  - Resume training: python scripts/run_training.py --config configs/llava_config.yaml --resume outputs/qwen_vl/checkpoint-500
+  - Load checkpoint và train tiếp: python scripts/run_training.py --config configs/llava_config.yaml --checkpoint outputs/qwen_vl/checkpoint-500
 """
 
 import argparse
