@@ -88,7 +88,6 @@ Follow Chain-of-Thought reasoning:
             "content": content
         }
     ]
-    print(messages)
     return messages   # Trả về List thay vì String
 
 def map_metadata_to_ground_truth(metadata: Dict) -> GroundTruthData:
