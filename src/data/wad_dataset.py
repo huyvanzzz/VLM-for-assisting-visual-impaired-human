@@ -147,7 +147,7 @@ class WADDataset(Dataset):
             return_tensors="pt",
             add_special_tokens=False, 
             truncation=True,
-            max_length=256
+            max_length=128
         )
         answer_input_ids = answer_tokens['input_ids'].squeeze(0)
         
