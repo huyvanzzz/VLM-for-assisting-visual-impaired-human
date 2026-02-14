@@ -1,5 +1,5 @@
 from transformers import Trainer, TrainingArguments
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import yaml
 import torch
 from tqdm.auto import tqdm
@@ -10,13 +10,14 @@ import warnings
 class VLMTrainer:
     """High-level training orchestration"""
     
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str, checkpoint_path: Optional[str] = None):
         warnings.filterwarnings('ignore', message='.*Unused or unrecognized kwargs.*')
 
         os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
         
+        self.checkpoint_path = checkpoint_path
         self.model = None
         self.trainer = None
         self.results = {}
@@ -33,12 +34,21 @@ class VLMTrainer:
         
         # Tạo progress bar cho setup
         setup_steps = ["Building model", "Building dataset", "Creating trainer"]
+        if self.checkpoint_path:
+            setup_steps.insert(1, "Loading checkpoint")  # Thêm bước load checkpoint
+            
         with tqdm(total=len(setup_steps), desc="Setup Progress") as pbar:
             # Build model
             pbar.set_description("Building model...")
             vlm = build_model(self.config)
             self.model = vlm.model
             pbar.update(1)
+            
+            # ✨ Load checkpoint nếu có
+            if self.checkpoint_path:
+                pbar.set_description("Loading checkpoint...")
+                self._load_checkpoint(self.checkpoint_path)
+                pbar.update(1)
             
             # Build dataset
             pbar.set_description("Building dataset...")
@@ -70,7 +80,7 @@ class VLMTrainer:
                 dataloader_num_workers=self.config['hardware']['num_workers'],
                 report_to="none",
                 optim=self.config['training']['optimizer'],
-                disable_tqdm=False,  # Bật tqdm của Trainer
+                disable_tqdm=False,
             )
             
             data_collator = VLMDataCollator(tokenizer=vlm.tokenizer)
@@ -78,7 +88,7 @@ class VLMTrainer:
             # Callbacks
             callbacks = [
                 MemoryOptimizationCallback(
-                    clear_cache_steps=25,  # Có thể giảm xuống 10 nếu vẫn OOM
+                    clear_cache_steps=25,
                     log_memory_steps=10
                 ),
             ]
@@ -100,15 +110,55 @@ class VLMTrainer:
         
         print("✓ Setup complete!")
     
-    def train(self):
-        """Run training"""
+    def _load_checkpoint(self, checkpoint_path: str):
+        """✨ Load checkpoint để train tiếp"""
+        from peft import PeftModel
+        
+        print(f"\n{'='*80}")
+        print(f"LOADING CHECKPOINT FROM: {checkpoint_path}")
+        print(f"{'='*80}\n")
+        
+        if not os.path.exists(checkpoint_path):
+            raise ValueError(f"Checkpoint path không tồn tại: {checkpoint_path}")
+        
+        # Kiểm tra các file cần thiết
+        required_files = ['adapter_model.safetensors', 'adapter_config.json']
+        missing_files = [f for f in required_files if not os.path.exists(os.path.join(checkpoint_path, f))]
+        
+        if missing_files:
+            raise ValueError(f"Thiếu các file: {missing_files}")
+        
+        # Load adapter vào model
+        print("Loading adapter weights...")
+        self.model = PeftModel.from_pretrained(
+            self.model,
+            checkpoint_path,
+            is_trainable=True  # Quan trọng: cho phép train tiếp
+        )
+        
+        print("✓ Checkpoint loaded successfully!")
+        print(f"  - Adapter weights: ✓")
+        print(f"  - Training state: ✓")
+    
+    def train(self, resume_from_checkpoint: Optional[str] = None):
+        """Run training
+        
+        Args:
+            resume_from_checkpoint: Path to checkpoint để resume training state
+            (optimizer, scheduler, training steps)
+        """
         print("\n" + "="*80)
         print("STARTING TRAINING")
         print("="*80 + "\n")
         
-        self._clear_memory() 
-        # Trainer đã có tqdm built-in, chỉ cần đảm bảo disable_tqdm=False
-        self.trainer.train()
+        self._clear_memory()
+        
+        # Nếu có checkpoint_path và muốn resume đầy đủ (bao gồm optimizer, scheduler)
+        if resume_from_checkpoint:
+            print(f"Resuming from checkpoint: {resume_from_checkpoint}")
+            self.trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+        else:
+            self.trainer.train()
         
         print("\n✓ Training complete!")
         self._clear_memory()
@@ -127,15 +177,15 @@ class VLMTrainer:
         return results
     
     def save(self, output_path: str):
-
-        self._clear_memory()
         """Save model"""
+        self._clear_memory()
         print(f"\nSaving model to {output_path}...")
         with tqdm(total=1, desc="Saving model") as pbar:
             self.trainer.save_model(output_path)
             pbar.update(1)
         print(f"✓ Model saved to {output_path}")
         self._clear_memory()
+        
     def _clear_memory(self):
         """Clear GPU and CPU memory"""
         if torch.cuda.is_available():

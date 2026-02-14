@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
 Main training script
-Usage: python scripts/run_training.py --config configs/llava_config.yaml
+Usage: 
+  - Train from scratch: python scripts/run_training.py --config configs/llava_config.yaml
+  - Resume training: python scripts/run_training.py --config configs/llava_config.yaml --resume ./output/checkpoint-500
+  - Load checkpoint và train tiếp: python scripts/run_training.py --config configs/llava_config.yaml --checkpoint ./output/checkpoint-500
 """
 
 import argparse
@@ -15,24 +18,32 @@ def main():
     parser = argparse.ArgumentParser(description='Train VLM model')
     parser.add_argument('--config', type=str, required=True, help='Path to config file')
     parser.add_argument('--eval_only', action='store_true', help='Only run evaluation')
-    parser.add_argument('--resume', type=str, default=None, help='Resume from checkpoint')
+    parser.add_argument('--resume', type=str, default=None, 
+                        help='Resume from checkpoint (optimizer + scheduler + steps)')
+    parser.add_argument('--checkpoint', type=str, default=None,
+                        help='Load adapter weights from checkpoint (train from beginning with new optimizer)')
     args = parser.parse_args()
     
     # Print device info
     print_device_info()
     
-    # Create trainer
-    trainer = VLMTrainer(args.config)
+    trainer = VLMTrainer(
+        config_path=args.config,
+        checkpoint_path=args.checkpoint
+    )
+    
+    # Setup (sẽ tự động load checkpoint nếu có)
     trainer.setup()
     
-    # Set seed
     set_seed(trainer.config['data']['seed'])
     
     # Run training
     if not args.eval_only:
         if args.resume:
-            print(f"Resuming from {args.resume}")
-        trainer.train()
+            print(f"Resuming full training state from {args.resume}")
+            trainer.train(resume_from_checkpoint=args.resume)
+        else:
+            trainer.train()
     
     # Run evaluation
     results = trainer.evaluate()
