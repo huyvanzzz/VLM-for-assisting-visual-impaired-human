@@ -145,7 +145,7 @@ class WADDataset(Dataset):
         answer_tokens = self.tokenizer(
             answer_text,
             return_tensors="pt",
-            add_special_tokens=False, 
+            add_special_tokens=False,
             truncation=True,
             max_length=128
         )
@@ -153,7 +153,7 @@ class WADDataset(Dataset):
         
         # 5. Ghép chuỗi (Training logic)
         input_ids = torch.cat([prompt_input_ids, answer_input_ids], dim=0)
-        
+        print(f"Tổng số token (input_ids): {input_ids.shape[0]}")
         attention_mask = torch.cat([
             prompt_attention_mask,
             torch.ones_like(answer_input_ids)
