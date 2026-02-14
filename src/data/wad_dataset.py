@@ -180,7 +180,7 @@ class WADDataset(Dataset):
             return_dict['image_sizes'] = inputs['image_sizes'].squeeze(0)
         if 'image_grid_thw' in inputs:
             return_dict['image_grid_thw'] = inputs['image_grid_thw'].squeeze(0)
-            
+        print(return_dict)
         return return_dict
 
 
@@ -252,50 +252,6 @@ def build_dataset(config: Dict, processor, tokenizer):
         image_size=image_size
     )
     
-    print(f"\n[1] Dataset created with {len(train_dataset)} samples")
-
-    # Check mapping
-    print(f"\n[2] Mapping stats:")
-    mapping = train_dataset.frame_path_mapping
-
-    total = len(mapping)
-    resolved = sum(1 for v in mapping.values() if v is not None)
-    unresolved = total - resolved
-
-    print(f"  Total metadata entries: {total}")
-    print(f"  Resolved: {resolved}")
-    print(f"  Unresolved: {unresolved}")
-
-    if unresolved > 0:
-        print(f"\n  ⚠️  {unresolved} entries cannot be resolved!")
-        print(f"  First 5 unresolved:")
-        count = 0
-        for k, v in mapping.items():
-            if v is None:
-                print(f"    '{k}'")
-                count += 1
-                if count >= 5:
-                    break
-
-    # Show first 10 mappings
-    print(f"\n[3] Sample mappings:")
-    for i, (meta_path, frame_key) in enumerate(list(mapping.items())[:10]):
-        if frame_key:
-            print(f"  {i}: '{meta_path}' → '{frame_key}'")
-        else:
-            print(f"  {i}: '{meta_path}' → ✗ NOT FOUND")
-
-    # Test loading
-    print(f"\n[4] Test loading sample 0:")
-    try:
-        sample = train_dataset[0]
-        print(f"  ✓ SUCCESS!")
-        print(f"  pixel_values: {sample['pixel_values'].shape}")
-    except Exception as e:
-        print(f"  ✗ FAILED: {e}")
-
-    print("\n" + "="*80)
-
     # Train/val split
     train_size = config['data']['train_split']
     indices = list(range(len(train_dataset)))
