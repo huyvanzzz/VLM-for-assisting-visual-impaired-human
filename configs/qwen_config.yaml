@@ -7,7 +7,7 @@ experiment:
 
 model:
   architecture: "qwen"
-  name: "Qwen/Qwen-VL-Chat"
+  name: "Qwen/Qwen2-VL-2B-Instruct"
   
   lora:
     enabled: true
@@ -36,7 +36,7 @@ training:
   output_dir: "./outputs/qwen_vl"
   num_epochs: 3
   batch_size: 1
-  gradient_accumulation_steps: 2
+  gradient_accumulation_steps: 1
   learning_rate: 2e-4
   warmup_steps: 100
   weight_decay: 0.01

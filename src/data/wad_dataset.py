@@ -105,93 +105,66 @@ class WADDataset(Dataset):
         frames = self._load_frames(frame_path, frame_ids)
         polm_list = self._load_bboxes(frame_path, frame_ids)
         
-        # 2. Tạo Text
-        prompt_text = construct_prompt(polm_list, num_images=self.num_frames)
-        ground_truth_dict = map_metadata_to_ground_truth(sample)
+        # 2. Tạo Text Prompt
+        # ======================================================================
+        # Bước A: Lấy cấu trúc messages (Vẫn dùng tên hàm cũ construct_prompt)
+        messages = construct_prompt(polm_list, num_images=self.num_frames)
         
-        # Tối ưu Token: Chỉ lấy JSON string gọn nhất + Token kết thúc
+        # Bước B: Dùng apply_chat_template để sinh chuỗi text chuẩn
+        # Hàm này sẽ tự động thêm \n sau mỗi <image>, giải quyết vụ lệch token
+        prompt_text = self.processor.apply_chat_template(
+            messages,
+            tokenize=False, 
+            add_generation_prompt=True
+        )
+        # ======================================================================
+
+        ground_truth_dict = map_metadata_to_ground_truth(sample)
         answer_text = ground_truth_dict.to_json() + self.tokenizer.eos_token
 
         # 3. Xử lý Prompt + Image qua Processor
-        # Lưu ý: padding=False để tự xử lý ghép chuỗi thủ công cho chính xác
         inputs = self.processor(
             text=prompt_text,
             images=frames,
             return_tensors="pt",
-            truncation=False,  # <--- THÊM DÒNG NÀY (Bắt buộc): Cấm processor tự cắt
-            padding=False      # <--- THÊM DÒNG NÀY: Để mình tự xử lý padding sau
+            truncation=False, # Không cắt
+            padding=False     # Không padding
         )
         
-        debug_pixel_values = inputs['pixel_values']
-        
-        # # In ra màn hình console (GIỮ NGUYÊN CỦA BẠN)
-        # print(f"\n[DEBUG IMAGE INFO]")
-        # print(f" - Shape gốc: {debug_pixel_values.shape}")
-        # # Shape thường là: (Batch, Num_Crops, Channels, Height, Width)
-        # # Ví dụ: torch.Size([1, 3, 3, 384, 384])
-        
-        # if len(debug_pixel_values.shape) == 5:
-        #     n_crops = debug_pixel_values.shape[1]
-        #     h = debug_pixel_values.shape[3]
-        #     w = debug_pixel_values.shape[4]
-        #     print(f" - Số lượng mảnh (Crops): {n_crops}")
-        #     print(f" - Kích thước mỗi mảnh: {h} x {w}")
-        # else:
-        #     print(f" - Shape lạ: {debug_pixel_values.shape}")
-            
-        # Lấy các Tensor ra khỏi batch dimension (vì processor trả về batch=1)
+        # Lấy dữ liệu ra
         prompt_input_ids = inputs['input_ids'].squeeze(0)
         prompt_attention_mask = inputs['attention_mask'].squeeze(0)
         pixel_values = inputs['pixel_values'].squeeze(0)
         
-        # ==========================================================================
-        # [FIX LỖI] CHÈN CODE SỬA LỖI TẠI ĐÂY (Trước khi ghép chuỗi)
-        # ==========================================================================
-        image_token_id = self.processor.tokenizer.convert_tokens_to_ids("<image>")
-        current_img_tokens = (prompt_input_ids == image_token_id).sum().item()
-        
-        print(f"\n[DEBUG ALIGNMENT CHECK - AUTO-FIX]")
-        print("pixel_values shape:", pixel_values.shape)
-        print("pixel_values:", pixel_values.shape[0])
-        # Nếu là 3 mảnh (Features=2052) mà Token chỉ có 2051 -> Bù 1 token
-        if len(pixel_values.shape) == 4:
-            # print(" -> [AUTO-FIX] Phát hiện 2051 tokens (thiếu 1). Đang bù thêm 1 token <image>...")
-            extra_token = torch.tensor([image_token_id], dtype=torch.long)
-            extra_mask = torch.tensor([1], dtype=torch.long)
-            
-            # Nối vào đuôi Prompt
-            prompt_input_ids = torch.cat([prompt_input_ids, extra_token], dim=0)
-            prompt_attention_mask = torch.cat([prompt_attention_mask, extra_mask], dim=0)
-        # ==========================================================================
+        # ======================================================================
+        # QUAN TRỌNG: ĐÃ BỎ CODE FIX THỦ CÔNG (torch.cat)
+        # Vì apply_chat_template đã tự thêm \n nên số token giờ sẽ KHỚP 100%.
+        # ======================================================================
 
-        # 4. Tokenize Answer (Câu trả lời)
+        # 4. Tokenize Answer
         answer_tokens = self.tokenizer(
             answer_text,
             return_tensors="pt",
-            add_special_tokens=False, # Không thêm BOS nữa vì đã có ở Prompt rồi
+            add_special_tokens=False, 
             truncation=True,
-            max_length=256 # Giới hạn độ dài câu trả lời để tiết kiệm bộ nhớ
+            max_length=256
         )
         answer_input_ids = answer_tokens['input_ids'].squeeze(0)
         
-        # 5. GHÉP CHUỖI (CONCATENATE) -> Logic Training Chuẩn
+        # 5. Ghép chuỗi (Training logic)
         input_ids = torch.cat([prompt_input_ids, answer_input_ids], dim=0)
         
-        # Tạo Attention Mask (1 cho cả prompt và answer)
         attention_mask = torch.cat([
             prompt_attention_mask,
             torch.ones_like(answer_input_ids)
         ], dim=0)
         
-        # Tạo Labels
-        # - Vùng Prompt: -100 (Model không cần học lại câu hỏi)
-        # - Vùng Answer: ID của token (Model phải đoán câu trả lời)
         labels = torch.cat([
             torch.full((len(prompt_input_ids),), -100, dtype=torch.long),
             answer_input_ids
         ], dim=0)
 
-        # 7. Đóng gói kết quả
+        # 6. Return
         return_dict = {
             'input_ids': input_ids,
             'attention_mask': attention_mask,
@@ -199,23 +172,7 @@ class WADDataset(Dataset):
             'labels': labels
         }
         
-        # (GIỮ NGUYÊN CODE IN CỦA BẠN ĐỂ CHECK LẠI)
-        image_token_id = self.tokenizer.convert_tokens_to_ids("<image>")
-
-        num_image_tokens = (input_ids == image_token_id).sum().item()
-
-        debug_count = getattr(self, '_debug_count', 0)  # Lấy giá trị hoặc 0
-
-        # if debug_count < 2:
-        #     print("\n[DEBUG ALIGNMENT CHECK]")
-        #     print("Total input_ids length:", len(input_ids))
-        #     print("Image token id:", image_token_id)
-        #     print("Number of <image> tokens in text:", num_image_tokens) 
-        #     print("Pixel_values shape:", pixel_values.shape)
-            
-        #     self._debug_count = debug_count + 1  # Lưu lại
-
-        # Copy các thông tin phụ (quan trọng cho model Qwen/LLaVA)
+        # Copy thông tin phụ cho model
         if 'image_sizes' in inputs:
             return_dict['image_sizes'] = inputs['image_sizes'].squeeze(0)
         if 'image_grid_thw' in inputs:

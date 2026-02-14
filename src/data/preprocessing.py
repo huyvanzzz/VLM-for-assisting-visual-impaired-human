@@ -2,6 +2,8 @@ import json
 from dataclasses import dataclass
 from typing import List, Dict
 
+from traitlets import Any
+
 @dataclass
 class POLMData:
     """POLM structure from bbox annotations"""
@@ -40,14 +42,15 @@ class GroundTruthData:
 def construct_prompt(
     polm_list: List[POLMData],
     num_images: int = 1,
-) -> str:
-    """Construct model input prompt"""
+) -> List[Dict[str, Any]]: # <--- Thay đổi kiểu trả về gợi ý (Type hint)
+    """
+    Construct model input messages (Updated for apply_chat_template)
+    """
     
     polm_text = "\n".join([polm.to_text() for polm in polm_list])
-    image_tokens = "\n".join(["<image>"] * num_images)
     
-    prompt = f"""{image_tokens}
-You are a navigation assistant for blind people.
+    # Tạo nội dung text hướng dẫn (Prompt)
+    text_content = f"""You are a navigation assistant for blind people.
 
 Detected objects in the scene:
 {polm_text}
@@ -58,8 +61,26 @@ Follow Chain-of-Thought reasoning:
 3. Decision: What guidance should be given?
 
 Respond in JSON: {{"location": "...", "weather": "...", "traffic": "...", "scene": "...", "instruction": "..."}}"""
+
+    # Tạo list content theo chuẩn OpenAI/HuggingFace
+    content = []
     
-    return prompt
+    # 1. Thêm placeholder cho ảnh (QUAN TRỌNG: Để type=image để template tự xử lý \n)
+    for _ in range(num_images):
+        content.append({"type": "image"})
+        
+    # 2. Thêm text
+    content.append({"type": "text", "text": text_content})
+
+    # 3. Đóng gói thành message user
+    messages = [
+        {
+            "role": "user",
+            "content": content
+        }
+    ]
+    
+    return messages   # Trả về List thay vì String
 
 
 def map_metadata_to_ground_truth(metadata: Dict) -> GroundTruthData:
