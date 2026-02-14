@@ -59,7 +59,6 @@ class WADDataset(Dataset):
                     img = Image.open(io.BytesIO(file_obj.read())).convert('RGB')
                     # -------------------------------------------------
                     frames_dict[frame_id] = img
-        print([frames_dict[fid] for fid in frame_ids])
         return [frames_dict[fid] for fid in frame_ids]
 
     def _load_bboxes(self, frame_path: str, frame_ids: List[int]) -> List[POLMData]:
@@ -77,7 +76,6 @@ class WADDataset(Dataset):
                         confidence=bbox['confidence']
                     )
                     polm_list.append(polm)
-        print(polm_list)
         return polm_list
 
     def _select_frames_safe(self, frame_path: str, num_frames: int = 1) -> List[int]:
@@ -95,7 +93,6 @@ class WADDataset(Dataset):
         selected = available_frames.copy()
         while len(selected) < num_frames:
             selected.append(available_frames[-1])
-        print(selected[:num_frames])
         return selected[:num_frames]
 
     def __getitem__(self, idx):
@@ -255,6 +252,50 @@ def build_dataset(config: Dict, processor, tokenizer):
         image_size=image_size
     )
     
+    print(f"\n[1] Dataset created with {len(train_dataset)} samples")
+
+    # Check mapping
+    print(f"\n[2] Mapping stats:")
+    mapping = train_dataset.frame_path_mapping
+
+    total = len(mapping)
+    resolved = sum(1 for v in mapping.values() if v is not None)
+    unresolved = total - resolved
+
+    print(f"  Total metadata entries: {total}")
+    print(f"  Resolved: {resolved}")
+    print(f"  Unresolved: {unresolved}")
+
+    if unresolved > 0:
+        print(f"\n  ⚠️  {unresolved} entries cannot be resolved!")
+        print(f"  First 5 unresolved:")
+        count = 0
+        for k, v in mapping.items():
+            if v is None:
+                print(f"    '{k}'")
+                count += 1
+                if count >= 5:
+                    break
+
+    # Show first 10 mappings
+    print(f"\n[3] Sample mappings:")
+    for i, (meta_path, frame_key) in enumerate(list(mapping.items())[:10]):
+        if frame_key:
+            print(f"  {i}: '{meta_path}' → '{frame_key}'")
+        else:
+            print(f"  {i}: '{meta_path}' → ✗ NOT FOUND")
+
+    # Test loading
+    print(f"\n[4] Test loading sample 0:")
+    try:
+        sample = train_dataset[0]
+        print(f"  ✓ SUCCESS!")
+        print(f"  pixel_values: {sample['pixel_values'].shape}")
+    except Exception as e:
+        print(f"  ✗ FAILED: {e}")
+
+    print("\n" + "="*80)
+
     # Train/val split
     train_size = config['data']['train_split']
     indices = list(range(len(train_dataset)))
