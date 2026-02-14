@@ -59,7 +59,7 @@ class WADDataset(Dataset):
                     img = Image.open(io.BytesIO(file_obj.read())).convert('RGB')
                     # -------------------------------------------------
                     frames_dict[frame_id] = img
-        
+        print([frames_dict[fid] for fid in frame_ids])
         return [frames_dict[fid] for fid in frame_ids]
 
     def _load_bboxes(self, frame_path: str, frame_ids: List[int]) -> List[POLMData]:
@@ -77,6 +77,7 @@ class WADDataset(Dataset):
                         confidence=bbox['confidence']
                     )
                     polm_list.append(polm)
+        print(polm_list)
         return polm_list
 
     def _select_frames_safe(self, frame_path: str, num_frames: int = 1) -> List[int]:
@@ -94,6 +95,7 @@ class WADDataset(Dataset):
         selected = available_frames.copy()
         while len(selected) < num_frames:
             selected.append(available_frames[-1])
+        print(selected[:num_frames])
         return selected[:num_frames]
 
     def __getitem__(self, idx):
@@ -181,7 +183,7 @@ class WADDataset(Dataset):
             return_dict['image_sizes'] = inputs['image_sizes'].squeeze(0)
         if 'image_grid_thw' in inputs:
             return_dict['image_grid_thw'] = inputs['image_grid_thw'].squeeze(0)
-            
+        print(return_dict)
         return return_dict
 
 

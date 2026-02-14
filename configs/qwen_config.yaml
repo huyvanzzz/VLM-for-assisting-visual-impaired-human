@@ -14,7 +14,7 @@ model:
     r: 16                    # OK
     alpha: 16               # Thường dùng alpha = 32 (2*r)
     dropout: 0.05           # OK
-    target_modules: 
+    target_modules:
       - "q_proj"
       - "k_proj"
       - "v_proj"

@@ -76,7 +76,7 @@ training:
 
 # ===== EVALUATION =====
 evaluation:
-  metrics: 
+  metrics:
     - "exact_match"
     - "location_accuracy"
     - "weather_accuracy"

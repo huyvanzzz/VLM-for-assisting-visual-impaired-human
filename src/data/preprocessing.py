@@ -13,6 +13,9 @@ class POLMData:
     
     def to_text(self) -> str:
         """Convert POLM to text for prompt"""
+        print(f"Object: {self.object_type}, "
+            f"BBox: [{self.bbox[0]:.1f}, {self.bbox[1]:.1f}, {self.bbox[2]:.1f}, {self.bbox[3]:.1f}], "
+            f"Confidence: {self.confidence:.2f}")
         return (
             f"Object: {self.object_type}, "
             f"BBox: [{self.bbox[0]:.1f}, {self.bbox[1]:.1f}, {self.bbox[2]:.1f}, {self.bbox[3]:.1f}], "
@@ -30,6 +33,13 @@ class GroundTruthData:
     
     def to_json(self) -> str:
         """Convert to JSON string"""
+        print(json.dumps({
+            'location': self.location,
+            'weather': self.weather,
+            'traffic': self.traffic,
+            'scene': self.scene,
+            'instruction': self.instruction
+        }, ensure_ascii=False))
         return json.dumps({
             'location': self.location,
             'weather': self.weather,
@@ -90,6 +100,10 @@ Respond in JSON: {"location": "...", "weather": "...", "traffic": "...", "scene"
         }
     ]
     
+    print("Generated messages:")
+    for msg in messages:
+        print(msg)
+
     return messages   # Trả về List thay vì String
 
 
@@ -137,6 +151,13 @@ def map_metadata_to_ground_truth(metadata: Dict) -> GroundTruthData:
         instruction = metadata['alter']
     else:
         instruction = ''
+    
+    print(GroundTruthData(
+        location=location,
+        weather=weather,
+        traffic=traffic,
+        scene=scene,
+        instruction=instruction))
     
     return GroundTruthData(
         location=location,
