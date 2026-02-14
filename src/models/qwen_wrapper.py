@@ -1,5 +1,5 @@
 from .base_vlm import BaseVLM
-from transformers import AutoConfig, AutoProcessor, AutoTokenizer, AutoModelForVision2Seq, BitsAndBytesConfig
+from transformers import AutoConfig, AutoProcessor, AutoTokenizer, Qwen2VLForConditionalGeneration, BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 import torch
 
@@ -13,28 +13,22 @@ class QwenVLModel(BaseVLM):
             bnb_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_quant_type=self.config['model']['quantization']['type'],
-                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_compute_dtype=torch.bfloat16,,
                 bnb_4bit_use_double_quant=self.config['model']['quantization']['double_quant']
             )
         else:
             bnb_config = None
         
-        config = AutoConfig.from_pretrained(
-            self.config['model']['name'],
-            trust_remote_code=True
-        )
-        config.use_cache = False
-        
         # Qwen-VL uses AutoModelForCausalLM
-        self.model = AutoModelForVision2Seq.from_pretrained(
+        self.model = Qwen2VLForConditionalGeneration.from_pretrained(
             self.config['model']['name'],
             quantization_config=bnb_config,
-            config=config,
             device_map="auto",
-            trust_remote_code=True,
-            dtype=torch.float16
+            torch_dtype=torch.bfloat16,
+            trust_remote_code=True
         )
-        
+        self.model.config.use_cache = False
+
         self.model = prepare_model_for_kbit_training(
             self.model,
             use_gradient_checkpointing=self.config['training']['gradient_checkpointing']
@@ -46,16 +40,15 @@ class QwenVLModel(BaseVLM):
         return self.model
     
     def load_processor(self):
+        vision_config = self.config['model'].get('vision', {})
         self.processor = AutoProcessor.from_pretrained(
             self.config['model']['name'],
             trust_remote_code=True,
-            use_fast=True,
+            min_pixels=vision_config.get('min_pixels', 256 * 28 * 28),
+            max_pixels=vision_config.get('max_pixels', 1280 * 28 * 28)
         )
         
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            self.config['model']['name'],
-            trust_remote_code=True
-        )
+        self.tokenizer = self.processor.tokenizer
         
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -79,8 +72,8 @@ class QwenVLModel(BaseVLM):
     
     def freeze_vision_encoder(self):
         frozen_count = 0
-        vision_keywords = ['visual', 'transformer', 'vit']
-        skip_keywords = ['adapter', 'projector']
+        vision_keywords = ['visual', 'vision_model']
+        skip_keywords = ['merger']
         
         for name, param in self.model.named_parameters():
             if any(kw in name.lower() for kw in vision_keywords):
