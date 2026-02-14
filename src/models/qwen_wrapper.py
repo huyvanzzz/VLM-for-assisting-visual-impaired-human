@@ -13,7 +13,7 @@ class QwenVLModel(BaseVLM):
             bnb_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_quant_type=self.config['model']['quantization']['type'],
-                bnb_4bit_compute_dtype=torch.bfloat16,,
+                bnb_4bit_compute_dtype=torch.bfloat16,
                 bnb_4bit_use_double_quant=self.config['model']['quantization']['double_quant']
             )
         else:
