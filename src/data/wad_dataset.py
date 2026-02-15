@@ -263,4 +263,10 @@ def build_dataset(config: Dict, processor, tokenizer):
     
     print(f"✓ Train: {len(train_subset)}, Val: {len(val_subset)}")
     
+    eval_limit = config['data'].get('eval_limit', 50)  # Mặc định 50 samples
+    
+    if len(val_subset) > eval_limit:
+        print(f"⚠️  Limiting eval dataset: {len(val_subset)} → {eval_limit} samples")
+        val_subset = Subset(val_subset, list(range(eval_limit)))
+
     return train_subset, val_subset
