@@ -116,6 +116,7 @@ class WADDataset(Dataset):
             tokenize=False,
             add_generation_prompt=True
         )
+        print(prompt_text)
         # ======================================================================
 
         ground_truth_dict = map_metadata_to_ground_truth(sample)
@@ -132,6 +133,7 @@ class WADDataset(Dataset):
         
         # Lấy dữ liệu ra
         prompt_input_ids = inputs['input_ids'].squeeze(0)
+        print(prompt_input_ids)
         prompt_attention_mask = inputs['attention_mask'].squeeze(0)
         pixel_values = inputs['pixel_values'].squeeze(0)
         
