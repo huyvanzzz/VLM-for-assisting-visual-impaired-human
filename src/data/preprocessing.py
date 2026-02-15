@@ -12,17 +12,17 @@ class POLMData:
     confidence: float
     
     def to_text(self) -> str:
-        """Convert POLM to text for prompt"""
         print(
-            f"Object: {self.object_type}, "
-            f"BBox: [{self.bbox[0]:.1f}, {self.bbox[1]:.1f}, {self.bbox[2]:.1f}, {self.bbox[3]:.1f}], "
-            f"Confidence: {self.confidence:.2f}"
+            f"[OBJ] {self.object_type} "
+            f"({self.bbox[0]:.2f}, {self.bbox[1]:.2f}, "
+            f"{self.bbox[2]:.2f}, {self.bbox[3]:.2f}) "
+            f"conf={self.confidence:.2f}"
         )
-
         return (
-            f"Object: {self.object_type}, "
-            f"BBox: [{self.bbox[0]:.1f}, {self.bbox[1]:.1f}, {self.bbox[2]:.1f}, {self.bbox[3]:.1f}], "
-            f"Confidence: {self.confidence:.2f}"
+            f"[OBJ] {self.object_type} "
+            f"({self.bbox[0]:.2f}, {self.bbox[1]:.2f}, "
+            f"{self.bbox[2]:.2f}, {self.bbox[3]:.2f}) "
+            f"conf={self.confidence:.2f}"
         )
 
 @dataclass
@@ -54,7 +54,7 @@ def construct_prompt(
     Construct model input messages (Updated for apply_chat_template)
     """
     
-    polm_text = "\n".join([polm.to_text() for polm in polm_list])
+    polm_text = "\n".join([f"- {polm.to_text()}" for polm in polm_list])
     
     question = ""
     if metadata and metadata.get('QA') and metadata['QA'].get('Q'):
@@ -63,7 +63,7 @@ def construct_prompt(
     # Tạo nội dung text hướng dẫn (Prompt)
     text_content = f"""You are a navigation assistant for blind people.
 
-Detected objects in the scene:
+Detected objects:
 {polm_text}
 
 Analyze: location, weather, traffic, scene → then give instruction.
@@ -71,16 +71,13 @@ Analyze: location, weather, traffic, scene → then give instruction.
 Follow Chain-of-Thought reasoning:
 1. Perception: What objects and environment do you see?
 2. Context: Location type, weather, traffic level?
-3. Decision: What guidance should be given?
-
-Format:
-<think>brief reasoning</think>"""
+3. Decision: What guidance should be given?"""
 
     if question != "":
         text_content += f"\n\nQuestion: {question}"
         text_content += """
 
-Format your response:
+Format response:
 <think>brief analysis</think>
 <answer>{"location": "...", "weather": "...", "traffic": "...", "scene": "...", "instruction": "<your answer to the question>"}</answer>
 
@@ -88,7 +85,7 @@ Format your response:
     else:
         text_content += """
 
-Format your response:
+Format response:
 <think>brief analysis</think>
 <answer>{"location": "...", "weather": "...", "traffic": "...", "scene": "...", "instruction": "<navigation guidance>"}</answer>
 
