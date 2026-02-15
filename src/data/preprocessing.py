@@ -14,14 +14,14 @@ class POLMData:
     def to_text(self) -> str:
         print(
             f"[OBJ] {self.object_type} "
-            f"({self.bbox[0]:.2f}, {self.bbox[1]:.2f}, "
-            f"{self.bbox[2]:.2f}, {self.bbox[3]:.2f}) "
+            f"({self.bbox[0]:.3f}, {self.bbox[1]:.3f}, "
+            f"{self.bbox[2]:.3f}, {self.bbox[3]:.3f}) "
             f"conf={self.confidence:.2f}"
         )
         return (
             f"[OBJ] {self.object_type} "
-            f"({self.bbox[0]:.2f}, {self.bbox[1]:.2f}, "
-            f"{self.bbox[2]:.2f}, {self.bbox[3]:.2f}) "
+            f"({self.bbox[0]:.3f}, {self.bbox[1]:.3f}, "
+            f"{self.bbox[2]:.3f}, {self.bbox[3]:.3f}) "
             f"conf={self.confidence:.2f}"
         )
 
@@ -43,7 +43,6 @@ class GroundTruthData:
             'scene': self.scene,
             'instruction': self.instruction
         }, ensure_ascii=False)
-
 
 def construct_prompt(
     polm_list: List[POLMData],
@@ -78,18 +77,16 @@ Follow Chain-of-Thought reasoning:
         text_content += """
 
 Format response:
-<think>brief analysis</think>
 <answer>{"location": "...", "weather": "...", "traffic": "...", "scene": "...", "instruction": "<your answer to the question>"}</answer>
 
-<think>"""
+<answer>"""
     else:
         text_content += """
 
 Format response:
-<think>brief analysis</think>
 <answer>{"location": "...", "weather": "...", "traffic": "...", "scene": "...", "instruction": "<navigation guidance>"}</answer>
 
-<think>"""
+<answer>"""
     # Tạo list content theo chuẩn OpenAI/HuggingFace
     content = []
     

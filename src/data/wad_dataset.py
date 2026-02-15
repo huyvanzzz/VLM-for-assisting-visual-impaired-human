@@ -119,7 +119,7 @@ class WADDataset(Dataset):
         # ======================================================================
 
         ground_truth_dict = map_metadata_to_ground_truth(sample)
-        answer_text = ground_truth_dict.to_json() + self.tokenizer.eos_token
+        answer_text = ground_truth_dict.to_json() + "</answer>" + self.tokenizer.eos_token
 
         # 3. Xử lý Prompt + Image qua Processor
         inputs = self.processor(
