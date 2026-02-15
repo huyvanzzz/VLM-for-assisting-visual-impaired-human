@@ -12,12 +12,6 @@ class POLMData:
     confidence: float
     
     def to_text(self) -> str:
-        print(
-            f"[OBJ] {self.object_type} "
-            f"({self.bbox[0]:.3f}, {self.bbox[1]:.3f}, "
-            f"{self.bbox[2]:.3f}, {self.bbox[3]:.3f}) "
-            f"conf={self.confidence:.2f}"
-        )
         return (
             f"[OBJ] {self.object_type} "
             f"({self.bbox[0]:.3f}, {self.bbox[1]:.3f}, "
