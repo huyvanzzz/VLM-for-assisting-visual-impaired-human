@@ -151,6 +151,7 @@ class WADDataset(Dataset):
             max_length=None
         )
         answer_input_ids = answer_tokens['input_ids'].squeeze(0)
+        print(answer_input_ids)
         # 5. Ghép chuỗi (Training logic)
         input_ids = torch.cat([prompt_input_ids, answer_input_ids], dim=0)
         attention_mask = torch.cat([
@@ -263,10 +264,10 @@ def build_dataset(config: Dict, processor, tokenizer):
     
     print(f"✓ Train: {len(train_subset)}, Val: {len(val_subset)}")
     
-    eval_limit = config['data'].get('eval_limit', 50)  # Mặc định 50 samples
+    eval_limit = config['data'].get('eval_limit', 200)  # Mặc định 50 samples
     
     if len(val_subset) > eval_limit:
-        print(f"⚠️  Limiting eval dataset: {len(val_subset)} → {eval_limit} samples")
+        print(f"  Limiting eval dataset: {len(val_subset)} → {eval_limit} samples")
         val_subset = Subset(val_subset, list(range(eval_limit)))
 
     return train_subset, val_subset

@@ -24,15 +24,15 @@ class VLMDataCollator:
         # Dùng pad_sequence của PyTorch cho an toàn và chính xác
         # [FIX 2]: Thay vì pad=0, dùng self.tokenizer.pad_token_id
         input_ids = torch.nn.utils.rnn.pad_sequence(
-            input_ids_list, 
-            batch_first=True, 
+            input_ids_list,
+            batch_first=True,
             padding_value=self.tokenizer.pad_token_id
         )
         
         # Attention mask pad bằng 0 là đúng (giữ nguyên logic, đổi cách viết cho gọn)
         attention_mask = torch.nn.utils.rnn.pad_sequence(
-            attention_mask_list, 
-            batch_first=True, 
+            attention_mask_list,
+            batch_first=True,
             padding_value=0
         )
         
