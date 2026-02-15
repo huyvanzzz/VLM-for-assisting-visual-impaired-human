@@ -13,6 +13,12 @@ class POLMData:
     
     def to_text(self) -> str:
         """Convert POLM to text for prompt"""
+        print(
+            f"Object: {self.object_type}, "
+            f"BBox: [{self.bbox[0]:.1f}, {self.bbox[1]:.1f}, {self.bbox[2]:.1f}, {self.bbox[3]:.1f}], "
+            f"Confidence: {self.confidence:.2f}"
+        )
+
         return (
             f"Object: {self.object_type}, "
             f"BBox: [{self.bbox[0]:.1f}, {self.bbox[1]:.1f}, {self.bbox[2]:.1f}, {self.bbox[3]:.1f}], "

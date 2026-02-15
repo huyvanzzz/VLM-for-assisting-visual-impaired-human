@@ -116,12 +116,11 @@ class WADDataset(Dataset):
             tokenize=False,
             add_generation_prompt=True
         )
-        print(prompt_text)
         # ======================================================================
 
         ground_truth_dict = map_metadata_to_ground_truth(sample)
         answer_text = ground_truth_dict.to_json() + self.tokenizer.eos_token
-        print("answer_text:", answer_text)
+
         # 3. Xử lý Prompt + Image qua Processor
         inputs = self.processor(
             text=prompt_text,
@@ -133,7 +132,6 @@ class WADDataset(Dataset):
         
         # Lấy dữ liệu ra
         prompt_input_ids = inputs['input_ids'].squeeze(0)
-        print(prompt_input_ids)
         prompt_attention_mask = inputs['attention_mask'].squeeze(0)
         pixel_values = inputs['pixel_values'].squeeze(0)
         
@@ -153,7 +151,6 @@ class WADDataset(Dataset):
             max_length=None
         )
         answer_input_ids = answer_tokens['input_ids'].squeeze(0)
-        print(answer_input_ids)
         # 5. Ghép chuỗi (Training logic)
         input_ids = torch.cat([prompt_input_ids, answer_input_ids], dim=0)
         attention_mask = torch.cat([
