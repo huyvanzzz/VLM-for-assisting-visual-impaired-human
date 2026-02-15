@@ -60,17 +60,33 @@ def construct_prompt(
 Detected objects in the scene:
 {polm_text}
 
+Analyze: location, weather, traffic, scene → then give instruction.
+
 Follow Chain-of-Thought reasoning:
 1. Perception: What objects and environment do you see?
 2. Context: Location type, weather, traffic level?
-3. Decision: What guidance should be given?"""
+3. Decision: What guidance should be given?
+
+Format:
+<think>brief reasoning</think>"""
 
     if question != "":
         text_content += f"\n\nQuestion: {question}"
-        text_content += '\n\nRespond in JSON: {"location": "...", "weather": "...", "traffic": "...", "scene": "...", "instruction": "<your answer to the question>"}'
-    else:
-        text_content += '\n\nRespond in JSON: {"location": "...", "weather": "...", "traffic": "...", "scene": "...", "instruction": "<navigation guidance>"}'
+        text_content += """
 
+Format your response:
+<think>brief analysis</think>
+<answer>{"location": "...", "weather": "...", "traffic": "...", "scene": "...", "instruction": "<your answer to the question>"}</answer>
+
+<think>"""
+    else:
+        text_content += """
+
+Format your response:
+<think>brief analysis</think>
+<answer>{"location": "...", "weather": "...", "traffic": "...", "scene": "...", "instruction": "<navigation guidance>"}</answer>
+
+<think>"""
     # Tạo list content theo chuẩn OpenAI/HuggingFace
     content = []
     
