@@ -20,9 +20,9 @@ class VLMEvaluator:
         # Generation configuration
         self.gen_config = {
             "max_new_tokens": 256,
-            "num_beams": 5,
+            "num_beams": 2,
             "do_sample": False,
-            "repetition_penalty": 1.5,
+            "repetition_penalty": 1.2,
             "use_cache": True
         }
 
