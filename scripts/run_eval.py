@@ -72,10 +72,11 @@ def main():
         
         if os.path.exists(args.checkpoint):
             model = PeftModel.from_pretrained(
-                model,
-                args.checkpoint,
-                torch_dtype=torch.float16 if config['training']['fp16'] else torch.float32
-            )
+            model,
+            args.checkpoint,
+            torch_dtype=torch.float16 if config['training']['fp16'] else torch.float32,
+            is_trainable=False  # ← Quan trọng cho evaluation!
+        )
             print("LoRA Adapter loaded successfully.")
         else:
             raise ValueError(f"Checkpoint path not found: {args.checkpoint}")
