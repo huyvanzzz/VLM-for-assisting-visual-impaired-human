@@ -5,10 +5,11 @@ import io
 from typing import List, Dict
 import torch
 import numpy as np
+import random
 from sklearn.model_selection import train_test_split
 
 from .preprocessing import POLMData, construct_prompt, map_metadata_to_ground_truth
-
+from PIL import UnidentifiedImageError
 
 class WADDataset(Dataset):
     def __init__(
@@ -105,87 +106,90 @@ class WADDataset(Dataset):
         return selected[:num_frames]
 
     def __getitem__(self, idx):
-        sample = self.metadata[idx]
-        frame_path = sample['frame_path']
-        
-        # 1. Load Data
-        frame_ids = self._select_frames_safe(frame_path, num_frames=self.num_frames)
-        frames = self._load_frames(frame_path, frame_ids)
-        polm_list = self._load_bboxes(frame_path, frame_ids)
-        
-        # 2. Tạo Text Prompt
-        # ======================================================================
-        # Bước A: Lấy cấu trúc messages (Vẫn dùng tên hàm cũ construct_prompt)
-        messages = construct_prompt(polm_list, num_images=self.num_frames, metadata=sample)
-        
-        # Bước B: Dùng apply_chat_template để sinh chuỗi text chuẩn
-        # Hàm này sẽ tự động thêm \n sau mỗi <image>, giải quyết vụ lệch token
-        prompt_text = self.processor.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True
-        )
-        # ======================================================================
+        try:
+            # --- BẮT ĐẦU LOGIC CŨ ---
+            sample = self.metadata[idx]
+            frame_path = sample['frame_path']
+            
+            # 1. Load Data
+            frame_ids = self._select_frames_safe(frame_path, num_frames=self.num_frames)
+            frames = self._load_frames(frame_path, frame_ids)
+            polm_list = self._load_bboxes(frame_path, frame_ids)
+            
+            # 2. Tạo Text Prompt
+            messages = self.construct_prompt(polm_list, num_images=self.num_frames, metadata=sample) # Lưu ý: thêm self. nếu hàm nằm trong class, hoặc giữ nguyên nếu là hàm ngoài
+            
+            prompt_text = self.processor.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True
+            )
 
-        ground_truth_dict = map_metadata_to_ground_truth(sample)
-        answer_text = ground_truth_dict.to_json() + "</answer>" + self.tokenizer.eos_token
+            ground_truth_dict = self.map_metadata_to_ground_truth(sample) # Lưu ý: thêm self. nếu cần
+            answer_text = ground_truth_dict.to_json() + "</answer>" + self.tokenizer.eos_token
 
-        # 3. Xử lý Prompt + Image qua Processor
-        inputs = self.processor(
-            text=prompt_text,
-            images=frames,
-            return_tensors="pt",
-            truncation=False, # Không cắt
-            padding=False     # Không padding
-        )
-        
-        # Lấy dữ liệu ra
-        prompt_input_ids = inputs['input_ids'].squeeze(0)
-        prompt_attention_mask = inputs['attention_mask'].squeeze(0)
-        pixel_values = inputs['pixel_values'].squeeze(0)
-        
-        image_token_id = self.processor.image_token_id
-        num_image_tokens = (prompt_input_ids == image_token_id).sum().item()
-        # ======================================================================
-        # QUAN TRỌNG: ĐÃ BỎ CODE FIX THỦ CÔNG (torch.cat)
-        # Vì apply_chat_template đã tự thêm \n nên số token giờ sẽ KHỚP 100%.
-        # ======================================================================
+            # 3. Xử lý Prompt + Image qua Processor
+            inputs = self.processor(
+                text=prompt_text,
+                images=frames,
+                return_tensors="pt",
+                truncation=False,
+                padding=False
+            )
+            
+            prompt_input_ids = inputs['input_ids'].squeeze(0)
+            prompt_attention_mask = inputs['attention_mask'].squeeze(0)
+            pixel_values = inputs['pixel_values'].squeeze(0)
+            
+            # 4. Tokenize Answer
+            answer_tokens = self.tokenizer(
+                answer_text,
+                return_tensors="pt",
+                add_special_tokens=False,
+                truncation=True,
+                max_length=None
+            )
+            answer_input_ids = answer_tokens['input_ids'].squeeze(0)
 
-        # 4. Tokenize Answer
-        answer_tokens = self.tokenizer(
-            answer_text,
-            return_tensors="pt",
-            add_special_tokens=False,
-            truncation=True,
-            max_length=None
-        )
-        answer_input_ids = answer_tokens['input_ids'].squeeze(0)
-        # 5. Ghép chuỗi (Training logic)
-        input_ids = torch.cat([prompt_input_ids, answer_input_ids], dim=0)
-        attention_mask = torch.cat([
-            prompt_attention_mask,
-            torch.ones_like(answer_input_ids)
-        ], dim=0)
-        
-        labels = torch.cat([
-            torch.full((len(prompt_input_ids),), -100, dtype=torch.long),
-            answer_input_ids
-        ], dim=0)
+            # 5. Ghép chuỗi
+            input_ids = torch.cat([prompt_input_ids, answer_input_ids], dim=0)
+            attention_mask = torch.cat([
+                prompt_attention_mask,
+                torch.ones_like(answer_input_ids)
+            ], dim=0)
+            
+            labels = torch.cat([
+                torch.full((len(prompt_input_ids),), -100, dtype=torch.long),
+                answer_input_ids
+            ], dim=0)
 
-        # 6. Return
-        return_dict = {
-            'input_ids': input_ids,
-            'attention_mask': attention_mask,
-            'pixel_values': pixel_values,
-            'labels': labels
-        }
-        
-        # Copy thông tin phụ cho model
-        if 'image_sizes' in inputs:
-            return_dict['image_sizes'] = inputs['image_sizes'].squeeze(0)
-        if 'image_grid_thw' in inputs:
-            return_dict['image_grid_thw'] = inputs['image_grid_thw'].squeeze(0)
-        return return_dict
+            # 6. Return
+            return_dict = {
+                'input_ids': input_ids,
+                'attention_mask': attention_mask,
+                'pixel_values': pixel_values,
+                'labels': labels
+            }
+            
+            if 'image_sizes' in inputs:
+                return_dict['image_sizes'] = inputs['image_sizes'].squeeze(0)
+            if 'image_grid_thw' in inputs:
+                return_dict['image_grid_thw'] = inputs['image_grid_thw'].squeeze(0)
+            
+            return return_dict
+            # --- KẾT THÚC LOGIC CŨ ---
+
+        except (UnidentifiedImageError, OSError, IOError, Exception) as e:
+            # --- XỬ LÝ LỖI TẠI ĐÂY ---
+            print(f"⚠️ WARNING: Error loading sample at index {idx}: {str(e)}")
+            print(f"   path: {self.metadata[idx].get('frame_path', 'unknown')}")
+            print("   👉 Skipping and picking a random sample instead.")
+            
+            # Chọn ngẫu nhiên một mẫu khác trong dataset để thay thế
+            new_idx = random.randint(0, len(self) - 1)
+            
+            # Gọi đệ quy lại hàm này với index mới
+            return self.__getitem__(new_idx)
 
 
 def build_dataset(config: Dict, processor, tokenizer):
