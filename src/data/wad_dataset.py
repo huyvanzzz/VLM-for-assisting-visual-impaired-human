@@ -62,10 +62,12 @@ class WADDataset(Dataset):
         return [frames_dict[fid] for fid in frame_ids]
 
     def _load_bboxes(self, frame_path: str, frame_ids: List[int]) -> List[POLMData]:
-        # (Giữ nguyên logic cũ của bạn)
         polm_list = []
+        
         if frame_path not in self.bbox_by_folder:
             return polm_list
+        
+        # Load all bboxes
         for frame_id in frame_ids:
             if frame_id in self.bbox_by_folder[frame_path]:
                 bboxes = self.bbox_by_folder[frame_path][frame_id]
@@ -76,6 +78,15 @@ class WADDataset(Dataset):
                         confidence=bbox['confidence']
                     )
                     polm_list.append(polm)
+        
+        min_conf = self.config['data'].get('min_confidence', 0.7)
+        polm_list = [p for p in polm_list if p.confidence >= min_conf]
+        
+        polm_list.sort(key=lambda x: x.confidence, reverse=True)
+        
+        max_objects = self.config['data'].get('max_objects', 50)
+        polm_list = polm_list[:max_objects]
+        
         return polm_list
 
     def _select_frames_safe(self, frame_path: str, num_frames: int = 1) -> List[int]:
