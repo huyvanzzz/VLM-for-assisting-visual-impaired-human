@@ -57,7 +57,7 @@ def main():
     # FIX: Tắt LoRA trong config khi có checkpoint
     # Vì checkpoint đã chứa LoRA weights rồi
     if args.checkpoint:
-        print("\n⚠️  Disabling LoRA in config (will load from checkpoint)")
+        print("\n  Disabling LoRA in config (will load from checkpoint)")
         if 'model' in config and 'lora' in config['model']:
             config['model']['lora']['enabled'] = False
     
