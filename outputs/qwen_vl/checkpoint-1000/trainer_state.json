@@ -3,7 +3,7 @@
   "best_metric": null,
   "best_model_checkpoint": null,
   "epoch": 0.21915406530791146,
-  "eval_steps": 2,
+  "eval_steps": 2000,
   "global_step": 1000,
   "is_hyper_param_search": false,
   "is_local_process_zero": true,
