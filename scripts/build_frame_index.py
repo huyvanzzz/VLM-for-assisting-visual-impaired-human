@@ -46,7 +46,7 @@ def main():
     for shard_path in tqdm(shard_paths):
         with tarfile.open(shard_path, 'r') as tar:
             for member in tar.getmembers():
-                if member.isfile() and member.name.endswith(('.jpg', '.jpeg')):
+                if member.isfile() and member.name.endswith(('.jpg', '.jpeg', '.png')):
                     parts = member.name.split('/')
                     
                     if len(parts) == 2:

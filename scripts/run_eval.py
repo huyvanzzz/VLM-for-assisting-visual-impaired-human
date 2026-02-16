@@ -3,15 +3,19 @@ import yaml
 import os
 import json
 import torch
+import pickle  # Thêm pickle
+from collections import defaultdict # Thêm defaultdict
 from torch.utils.data import DataLoader
 from peft import PeftModel
 import sys
 sys.path.append('.')
+
 # Import project modules
 from src.models.model_registry import build_model
-from src.data.wad_dataset import build_dataset
+from src.data.wad_dataset import build_dataset, WADDataset # Import class WADDataset
 from src.data.data_collator import VLMDataCollator
 from src.evaluation.evaluator import VLMEvaluator
+from datasets import load_dataset # Import load_dataset
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run Evaluation for Navigation VLM")
@@ -41,11 +45,49 @@ def parse_args():
         "--split",
         type=str,
         default="test_alter",
-        choices=["train", "valid", "test_alter", "test_QA"],  # Giữ "valid"
+        choices=["train", "valid", "test_alter", "test_QA"],
         help="Dataset split to evaluate on"
     )
 
     return parser.parse_args()
+
+def prepare_auxiliary_data(config):
+    """
+    Hàm phụ trợ: Load frame_index và bbox giống hệt logic trong build_dataset
+    để dùng cho test_alter/test_QA
+    """
+    print("--- Loading Auxiliary Data for Testing ---")
+    
+    # 1. Load frame index
+    index_file = "./wad_dataset/frame_index.pkl"
+    print(f"Loading frame index from {index_file}...")
+    if os.path.exists(index_file):
+        with open(index_file, 'rb') as f:
+            frame_index = pickle.load(f)
+    else:
+        raise FileNotFoundError(f"Frame index not found at {index_file}. Please check path.")
+
+    # 2. Load bboxes
+    print("Loading bboxes...")
+    # Load từ file local nếu có, hoặc từ HF hub theo config
+    bbox_file = "all_bboxes.jsonl"
+    if os.path.exists(bbox_file):
+        bbox_dataset = load_dataset("json", data_files=bbox_file, split="train")
+    else:
+        bbox_dataset = load_dataset(config['data']['name'], data_files="all_bboxes.jsonl", split="train")
+
+    bbox_by_folder = defaultdict(lambda: defaultdict(list))
+    for bbox_entry in bbox_dataset:
+        folder_id = bbox_entry['folder_id']
+        frame_id = bbox_entry['frame_id']
+        
+        bbox_by_folder[folder_id][frame_id].append({
+            'label': bbox_entry['label'],
+            'confidence': bbox_entry['probs'],
+            'bbox': bbox_entry['boxs']
+        })
+    
+    return frame_index, bbox_by_folder
 
 def main():
     args = parse_args()
@@ -55,13 +97,12 @@ def main():
         config = yaml.safe_load(f)
     
     # FIX: Tắt LoRA trong config khi có checkpoint
-    # Vì checkpoint đã chứa LoRA weights rồi
     if args.checkpoint:
         print("\n  Disabling LoRA in config (will load from checkpoint)")
         if 'model' in config and 'lora' in config['model']:
             config['model']['lora']['enabled'] = False
     
-    # 2. Build Base Model (không có LoRA nếu có checkpoint)
+    # 2. Build Base Model
     print("Building Base Model...")
     vlm_wrapper = build_model(config)
     
@@ -79,17 +120,15 @@ def main():
         if not os.path.exists(args.checkpoint):
             raise ValueError(f"Checkpoint not found: {args.checkpoint}")
         
-        # Validate files
+        # Validate files logic (giữ nguyên của bạn)
         required_files = ['adapter_config.json', 'adapter_model.safetensors']
         missing_files = [f for f in required_files 
                         if not os.path.exists(os.path.join(args.checkpoint, f))]
         
         if missing_files:
-            # Check for .bin as fallback
             if 'adapter_model.safetensors' in missing_files:
                 if os.path.exists(os.path.join(args.checkpoint, 'adapter_model.bin')):
                     missing_files.remove('adapter_model.safetensors')
-            
             if missing_files:
                 raise ValueError(f"Missing files: {missing_files}")
         
@@ -101,14 +140,9 @@ def main():
                 torch_dtype=torch.bfloat16 if config['training'].get('bf16', False) 
                            else torch.float16 if config['training']['fp16'] 
                            else torch.float32,
-                is_trainable=False  # Evaluation mode
+                is_trainable=False
             )
             print("✓ LoRA Adapter loaded successfully.")
-            
-            # Print adapter info
-            if hasattr(model, 'print_trainable_parameters'):
-                model.print_trainable_parameters()
-                
         except Exception as e:
             print(f" Error loading adapter: {e}")
             raise
@@ -118,7 +152,7 @@ def main():
         print("MODE: BASE MODEL (Zero-shot)")
         print("="*60 + "\n")
     
-    # Set device and eval mode
+    # Set device
     device = config.get('hardware', {}).get('device', 
              'cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
@@ -130,38 +164,49 @@ def main():
     print(f"Loading dataset split: {args.split}...")
     
     if args.split in ["train", "valid"]:
-        # Dùng build_dataset cho train/valid (tự động chia)
+        # Dùng build_dataset có sẵn cho train/valid
         train_dataset, valid_dataset = build_dataset(config, processor, tokenizer)
-        
         if args.split == "train":
             target_dataset = train_dataset
-        else:  # valid
+        else:
             target_dataset = valid_dataset
             
     else:  # test_alter hoặc test_QA
-        # Load test splits riêng
-        from datasets import load_dataset
-        from src.data.wad_dataset import WADDataset
+        # --- PHẦN ĐÃ SỬA ---
         
+        # A. Load dữ liệu phụ trợ (Bắt buộc cho WADDataset)
+        frame_index, bbox_by_folder = prepare_auxiliary_data(config)
+
+        # B. Load file metadata tương ứng
         if args.split == "test_alter":
-            metadata = load_dataset(
-                config['data']['name'],
-                data_files={"test": "test_alter.json"},
-                split="test"
-            )
+            data_file = "test_alter.json"
         elif args.split == "test_QA":
-            metadata = load_dataset(
-                config['data']['name'],
-                data_files={"test": "test_QA.json"},
-                split="test"
-            )
+            data_file = "test_QA.json"
         
+        print(f"Loading metadata from {data_file}...")
+        # Load dataset dict: {'test': ...}
+        dataset_dict = load_dataset(
+            "json", # Dùng loader json local
+            data_files={"test": data_file}
+        )
+        
+        # C. Xác định image_size (Logic từ build_dataset)
+        architecture = config['model']['architecture']
+        if architecture == 'qwen':
+            image_size = None
+        else:
+            image_size = tuple(config['model']['vision']['image_size'])
+
+        # D. Khởi tạo WADDataset (Đúng tham số)
         target_dataset = WADDataset(
-            metadata=metadata,
+            metadata_dataset=dataset_dict,   # Truyền dataset dict vào
+            frame_index=frame_index,         # Cần thiết
+            bbox_by_folder=bbox_by_folder,   # Cần thiết
             processor=processor,
             tokenizer=tokenizer,
-            config=config,
-            num_frames=config['data'].get('num_frames', 1)
+            split='test',                    # Key để lấy data trong metadata_dataset
+            num_frames=config['data'].get('num_frames', 1),
+            image_size=image_size
         )
     
     print(f"Split: {args.split}")
