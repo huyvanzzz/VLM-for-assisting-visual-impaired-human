@@ -54,7 +54,7 @@ def main():
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
     
-    # ✅ FIX: Tắt LoRA trong config khi có checkpoint
+    # FIX: Tắt LoRA trong config khi có checkpoint
     # Vì checkpoint đã chứa LoRA weights rồi
     if args.checkpoint:
         print("\n⚠️  Disabling LoRA in config (will load from checkpoint)")
@@ -110,7 +110,7 @@ def main():
                 model.print_trainable_parameters()
                 
         except Exception as e:
-            print(f"❌ Error loading adapter: {e}")
+            print(f" Error loading adapter: {e}")
             raise
             
     else:
