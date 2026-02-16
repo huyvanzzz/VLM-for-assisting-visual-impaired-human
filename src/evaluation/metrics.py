@@ -4,6 +4,7 @@ import pickle
 import numpy as np
 import evaluate
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from typing import List, Dict, Any
 
 class VLMMetrics:
@@ -21,12 +22,12 @@ class VLMMetrics:
             with open(self.tfidf_path, "rb") as f:
                 self.vectorizer = pickle.load(f)
         else:
-            print("[Warning] TF-IDF vectorizer not found. Run 'fit_tfidf' on training data first.")
+            print("[Warning] TF-IDF vectorizer not found. Will auto-fit on first use.")
 
     def _clean_text(self, text: str) -> str:
         """Làm sạch text, loại bỏ các thẻ XML nếu model sinh thừa"""
         text = text.strip()
-        # Xử lý format <answer>...</answer> của preprocessing.py
+        # Xử lý format <answer>...</answer>
         if "<answer>" in text:
             text = text.split("<answer>")[-1]
         if "</answer>" in text:
@@ -37,32 +38,36 @@ class VLMMetrics:
         """Parse JSON để lấy trường dữ liệu cụ thể"""
         try:
             clean_str = self._clean_text(json_str)
-            # Thử parse JSON
             data = json.loads(clean_str)
             return str(data.get(key, "")).strip()
         except json.JSONDecodeError:
-            # Fallback: Nếu JSON lỗi, trả về chuỗi gốc để tính ROUGE (chấp nhận phạt điểm)
             return clean_str
 
-    def fit_tfidf(self, train_dataset):
-        """Học từ vựng từ tập Train (Chỉ học trên field instruction)"""
-        print("Fitting TF-IDF on training corpus...")
-        corpus = []
+    def fit_tfidf(self, corpus: List[str]):
+        """
+        Học từ vựng từ corpus
         
-        # Hỗ trợ cả Dataset object hoặc List
-        iterator = train_dataset if isinstance(train_dataset, list) else range(len(train_dataset))
+        Args:
+            corpus: List các string instruction từ training set
+        """
+        print(f"Fitting TF-IDF on {len(corpus)} samples...")
         
-        for i in iterator:
-            item = train_dataset[i] if not isinstance(train_dataset, list) else i
-            # Logic: Cần decode label token thành text nếu input là dataset thô
-            # Nhưng để đơn giản, ta khuyên user chạy fit trên list raw text
-            # Ở đây giả định item là text hoặc dict đã decode
-            # ... (Phần này sẽ xử lý ở script chạy ngoài)
-            pass
-            
-        # NOTE: Để an toàn, hàm này nên được gọi với list các string 'instruction' chuẩn
-        # Mình sẽ để logic extract ở ngoài runner cho linh hoạt.
-        pass 
+        # Tạo và fit vectorizer
+        self.vectorizer = TfidfVectorizer(
+            max_features=5000,
+            ngram_range=(1, 2),
+            min_df=2,
+            stop_words='english'
+        )
+        
+        self.vectorizer.fit(corpus)
+        
+        # Save vectorizer
+        with open(self.tfidf_path, "wb") as f:
+            pickle.dump(self.vectorizer, f)
+        
+        print(f"✓ TF-IDF vectorizer saved to {self.tfidf_path}")
+        print(f"  Vocabulary size: {len(self.vectorizer.vocabulary_)}")
 
     def compute(self, predictions: List[str], references: List[str], target_field: str = "instruction") -> Dict[str, float]:
         """
@@ -71,30 +76,36 @@ class VLMMetrics:
             predictions: List các chuỗi JSON do model sinh ra
             references: List các chuỗi JSON chuẩn (Ground Truth)
         """
-        if self.vectorizer is None:
-            print("[Warning] TF-IDF not fitted. Skipping TF-IDF score.")
-            tfidf_score = 0.0
-        else:
-            # 1. Trích xuất text cần so sánh (instruction)
-            pred_texts = [self._extract_field(p, key=target_field) for p in predictions]
-            ref_texts = [self._extract_field(r, key=target_field) for r in references]
-            
-            # 2. Tính TF-IDF Cosine Similarity
-            try:
-                tfidf_preds = self.vectorizer.transform(pred_texts)
-                tfidf_refs = self.vectorizer.transform(ref_texts)
-                cosine_sims = (tfidf_preds.multiply(tfidf_refs)).sum(axis=1)
-                tfidf_score = np.mean(cosine_sims) * 100
-            except ValueError:
-                tfidf_score = 0.0
-
-        # 3. Tính ROUGE (trên toàn bộ chuỗi hoặc field cụ thể - ở đây chọn field cụ thể)
-        pred_texts_rouge = [self._extract_field(p, key=target_field) for p in predictions]
-        ref_texts_rouge = [self._extract_field(r, key=target_field) for r in references]
+        # Extract text
+        pred_texts = [self._extract_field(p, key=target_field) for p in predictions]
+        ref_texts = [self._extract_field(r, key=target_field) for r in references]
         
+        # Auto-fit nếu chưa có vectorizer
+        if self.vectorizer is None:
+            print("[Warning] TF-IDF not fitted. Auto-fitting on current data...")
+            self.fit_tfidf(ref_texts)
+        
+        # 1. Tính TF-IDF Cosine Similarity ĐÚNG
+        try:
+            tfidf_preds = self.vectorizer.transform(pred_texts)
+            tfidf_refs = self.vectorizer.transform(ref_texts)
+            
+            # Dùng sklearn cosine_similarity
+            similarities = []
+            for i in range(len(pred_texts)):
+                sim = cosine_similarity(tfidf_preds[i], tfidf_refs[i])[0, 0]
+                similarities.append(sim)
+            
+            tfidf_score = np.mean(similarities) * 100
+            
+        except Exception as e:
+            print(f"[Error] TF-IDF computation failed: {e}")
+            tfidf_score = 0.0
+
+        # 2. Tính ROUGE
         rouge_scores = self.rouge_metric.compute(
-            predictions=pred_texts_rouge, 
-            references=ref_texts_rouge, 
+            predictions=pred_texts, 
+            references=ref_texts, 
             use_stemmer=True
         )
 

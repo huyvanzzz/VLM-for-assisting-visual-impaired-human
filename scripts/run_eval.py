@@ -40,8 +40,8 @@ def parse_args():
     parser.add_argument(
         "--split",
         type=str,
-        default="val",
-        choices=["train", "val"],
+        default="test_alter",
+        choices=["train", "valid", "test_alter", "test_QA"],
         help="Dataset split to evaluate on"
     )
 
@@ -88,16 +88,43 @@ def main():
     model.eval()
 
     # 4. Prepare Dataset
-    print("Loading dataset...")
-    train_subset, val_subset = build_dataset(
-        config, 
-        processor, 
-        tokenizer
-    )
+    print(f"Loading dataset split: {args.split}...")
     
-    target_dataset = train_subset if args.split == "train" else val_subset
+    if args.split in ["train", "valid"]:
+        train_dataset, valid_dataset = build_dataset(config, processor, tokenizer)
+        
+        if args.split == "train":
+            target_dataset = train_dataset
+        else:  # valid
+            target_dataset = valid_dataset
+            
+    else:  # test_alter hoặc test_QA
+        from datasets import load_dataset
+        from src.data.wad_dataset import WADDataset
+        
+        if args.split == "test_alter":
+            metadata = load_dataset(
+                config['data']['name'],
+                data_files={"test": "test_alter.json"},
+                split="test"
+            )
+        elif args.split == "test_QA":
+            metadata = load_dataset(
+                config['data']['name'],
+                data_files={"test": "test_QA.json"},
+                split="test"
+            )
+        
+        target_dataset = WADDataset(
+            metadata=metadata,
+            processor=processor,
+            tokenizer=tokenizer,
+            config=config,
+            num_frames=config['data'].get('num_frames', 1)
+        )
+    
+    print(f"Split: {args.split}")
     print(f"Number of evaluation samples: {len(target_dataset)}")
-
     # 5. Setup DataLoader
     print("Setting up DataLoader (batch_size=1)...")
     data_collator = VLMDataCollator(tokenizer=tokenizer)
@@ -161,6 +188,7 @@ def main():
         json.dump(final_results, f, indent=4, ensure_ascii=False)
         
     print("\nEVALUATION COMPLETED")
+    print(f"  Dataset Split: {args.split}")
     print(f"  Result File: {output_path}")
     print(f"  ROUGE-L: {metrics.get('ROUGE-L', 0):.2f}")
     print(f"  TF-IDF:  {metrics.get('TF-IDF', 0):.2f}")
