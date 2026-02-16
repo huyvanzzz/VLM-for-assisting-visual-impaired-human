@@ -32,6 +32,13 @@ class VLMTrainer:
         from .callbacks import MemoryOptimizationCallback, ExperimentTrackingCallback
         from ..data.data_collator import VLMDataCollator
         
+        config = self.config.copy()
+        if self.checkpoint_path:
+            print("\n  checkpoint_path detected: Disabling LoRA in config")
+            print("   (LoRA will be loaded from checkpoint instead)\n")
+            if 'model' in config and 'lora' in config['model']:
+                config['model']['lora']['enabled'] = False
+
         # Tạo progress bar cho setup
         setup_steps = ["Building model", "Building dataset", "Creating trainer"]
         if self.checkpoint_path:
