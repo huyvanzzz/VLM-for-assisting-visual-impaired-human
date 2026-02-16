@@ -41,7 +41,7 @@ def parse_args():
         "--split",
         type=str,
         default="test_alter",
-        choices=["train", "valid", "test_alter", "test_QA"],
+        choices=["train", "valid", "test_alter", "test_QA"],  # Giữ "valid"
         help="Dataset split to evaluate on"
     )
 
@@ -90,49 +90,51 @@ def main():
     # 4. Prepare Dataset
     print(f"Loading dataset split: {args.split}...")
     
-    from datasets import load_dataset
-    
-    # Load dataset với split cụ thể
-    if args.split == "train":
-        metadata = load_dataset(
-            config['data']['name'],
-            data_files={"train": "train.json"},
-            split="train"
+    if args.split in ["train", "valid"]:
+        # Dùng build_dataset cho train/valid (tự động chia)
+        train_dataset, valid_dataset = build_dataset(config, processor, tokenizer)
+        
+        if args.split == "train":
+            target_dataset = train_dataset
+        else:  # valid
+            target_dataset = valid_dataset
+            
+    else:  # test_alter hoặc test_QA
+        # Load test splits riêng
+        from datasets import load_dataset
+        from src.data.wad_dataset import WADDataset
+        
+        if args.split == "test_alter":
+            metadata = load_dataset(
+                config['data']['name'],
+                data_files={"test": "test_alter.json"},
+                split="test"
+            )
+        elif args.split == "test_QA":
+            metadata = load_dataset(
+                config['data']['name'],
+                data_files={"test": "test_QA.json"},
+                split="test"
+            )
+        
+        target_dataset = WADDataset(
+            metadata=metadata,
+            processor=processor,
+            tokenizer=tokenizer,
+            config=config,
+            num_frames=config['data'].get('num_frames', 1)
         )
-    elif args.split == "test_alter":
-        metadata = load_dataset(
-            config['data']['name'],
-            data_files={"test": "test_alter.json"},
-            split="test"
-        )
-    elif args.split == "test_QA":
-        metadata = load_dataset(
-            config['data']['name'],
-            data_files={"test": "test_QA.json"},
-            split="test"
-        )
-    else:
-        raise ValueError(f"Unknown split: {args.split}")
-
-    from src.data.wad_dataset import WADDataset
-    
-    target_dataset = WADDataset(
-        metadata=metadata,
-        processor=processor,
-        tokenizer=tokenizer,
-        config=config,
-        num_frames=config['data'].get('num_frames', 1)
-    )
     
     print(f"Split: {args.split}")
     print(f"Number of evaluation samples: {len(target_dataset)}")
+    
     # 5. Setup DataLoader
     print("Setting up DataLoader (batch_size=1)...")
     data_collator = VLMDataCollator(tokenizer=tokenizer)
     
     eval_dataloader = DataLoader(
         target_dataset,
-        batch_size=1,            # REQUIRED: batch_size=1
+        batch_size=1,
         shuffle=False,
         collate_fn=data_collator,
         num_workers=config['hardware']['num_workers'],
@@ -152,18 +154,16 @@ def main():
     print("Starting Evaluation Loop...")
     mode_name = "LoRA_Finetuned" if args.checkpoint else "Base_Model"
     
-    # Capture metrics, predictions, and references
     metrics, predictions, references = evaluator.evaluate_dataset(
         eval_dataloader, 
         task_name=mode_name,
-        print_samples=5  # Print 5 samples to console
+        print_samples=5
     )
 
     # 8. Save Detailed Results
     output_path = args.output_file
     print(f"Saving results to {output_path}...")
     
-    # Create detailed list of samples
     detailed_samples = []
     for i, (pred, ref) in enumerate(zip(predictions, references)):
         detailed_samples.append({
@@ -182,7 +182,6 @@ def main():
         "samples": detailed_samples
     }
     
-    # Ensure directory exists
     os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
     
     with open(output_path, "w", encoding='utf-8') as f:
