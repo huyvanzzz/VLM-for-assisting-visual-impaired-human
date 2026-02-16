@@ -51,11 +51,17 @@ def main():
     args = parse_args()
     
     # 1. Load Config
-    print(f"Loading config from: {args.config}")
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
-
-    # 2. Build Base Model
+    
+    # ✅ FIX: Tắt LoRA trong config khi có checkpoint
+    # Vì checkpoint đã chứa LoRA weights rồi
+    if args.checkpoint:
+        print("\n⚠️  Disabling LoRA in config (will load from checkpoint)")
+        if 'model' in config and 'lora' in config['model']:
+            config['model']['lora']['enabled'] = False
+    
+    # 2. Build Base Model (không có LoRA nếu có checkpoint)
     print("Building Base Model...")
     vlm_wrapper = build_model(config)
     
@@ -63,30 +69,62 @@ def main():
     tokenizer = vlm_wrapper.tokenizer
     processor = vlm_wrapper.processor
     
-    # 3. Handle Base vs LoRA Logic
+    # 3. Load LoRA từ checkpoint
     if args.checkpoint:
         print("\n" + "="*60)
         print("MODE: FINE-TUNED MODEL (LoRA)")
         print(f"Checkpoint: {args.checkpoint}")
         print("="*60 + "\n")
         
-        if os.path.exists(args.checkpoint):
+        if not os.path.exists(args.checkpoint):
+            raise ValueError(f"Checkpoint not found: {args.checkpoint}")
+        
+        # Validate files
+        required_files = ['adapter_config.json', 'adapter_model.safetensors']
+        missing_files = [f for f in required_files 
+                        if not os.path.exists(os.path.join(args.checkpoint, f))]
+        
+        if missing_files:
+            # Check for .bin as fallback
+            if 'adapter_model.safetensors' in missing_files:
+                if os.path.exists(os.path.join(args.checkpoint, 'adapter_model.bin')):
+                    missing_files.remove('adapter_model.safetensors')
+            
+            if missing_files:
+                raise ValueError(f"Missing files: {missing_files}")
+        
+        print("Loading LoRA adapter...")
+        try:
             model = PeftModel.from_pretrained(
-            model,
-            args.checkpoint,
-            torch_dtype=torch.float16 if config['training']['fp16'] else torch.float32,
-            is_trainable=False  # ← Quan trọng cho evaluation!
-        )
-            print("LoRA Adapter loaded successfully.")
-        else:
-            raise ValueError(f"Checkpoint path not found: {args.checkpoint}")
+                model,
+                args.checkpoint,
+                torch_dtype=torch.bfloat16 if config['training'].get('bf16', False) 
+                           else torch.float16 if config['training']['fp16'] 
+                           else torch.float32,
+                is_trainable=False  # Evaluation mode
+            )
+            print("✓ LoRA Adapter loaded successfully.")
+            
+            # Print adapter info
+            if hasattr(model, 'print_trainable_parameters'):
+                model.print_trainable_parameters()
+                
+        except Exception as e:
+            print(f"❌ Error loading adapter: {e}")
+            raise
+            
     else:
         print("\n" + "="*60)
         print("MODE: BASE MODEL (Zero-shot)")
-        print("Warning: Base model might output raw text formats.")
         print("="*60 + "\n")
-
+    
+    # Set device and eval mode
+    device = config.get('hardware', {}).get('device', 
+             'cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
     model.eval()
+    
+    print(f"✓ Model ready on device: {device}\n")
 
     # 4. Prepare Dataset
     print(f"Loading dataset split: {args.split}...")
