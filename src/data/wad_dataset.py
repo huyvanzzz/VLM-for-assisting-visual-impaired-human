@@ -117,7 +117,7 @@ class WADDataset(Dataset):
             polm_list = self._load_bboxes(frame_path, frame_ids)
             
             # 2. Tạo Text Prompt
-            messages = self.construct_prompt(polm_list, num_images=self.num_frames, metadata=sample) # Lưu ý: thêm self. nếu hàm nằm trong class, hoặc giữ nguyên nếu là hàm ngoài
+            messages = construct_prompt(polm_list, num_images=self.num_frames, metadata=sample) # Lưu ý: thêm self. nếu hàm nằm trong class, hoặc giữ nguyên nếu là hàm ngoài
             
             prompt_text = self.processor.apply_chat_template(
                 messages,
@@ -125,7 +125,7 @@ class WADDataset(Dataset):
                 add_generation_prompt=True
             )
 
-            ground_truth_dict = self.map_metadata_to_ground_truth(sample) # Lưu ý: thêm self. nếu cần
+            ground_truth_dict = map_metadata_to_ground_truth(sample) # Lưu ý: thêm self. nếu cần
             answer_text = ground_truth_dict.to_json() + "</answer>" + self.tokenizer.eos_token
 
             # 3. Xử lý Prompt + Image qua Processor
