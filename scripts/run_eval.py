@@ -5,7 +5,8 @@ import json
 import torch
 from torch.utils.data import DataLoader
 from peft import PeftModel
-
+import sys
+sys.path.append('.')
 # Import project modules
 from src.models.model_registry import build_model
 from src.data.wad_dataset import build_dataset
