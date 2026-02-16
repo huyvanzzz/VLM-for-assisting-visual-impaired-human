@@ -79,13 +79,11 @@ class WADDataset(Dataset):
                     )
                     polm_list.append(polm)
         
-        min_conf = self.config['data'].get('min_confidence', 0.7)
-        polm_list = [p for p in polm_list if p.confidence >= min_conf]
+        polm_list = [p for p in polm_list if p.confidence >= 0.7]
         
         polm_list.sort(key=lambda x: x.confidence, reverse=True)
         
-        max_objects = self.config['data'].get('max_objects', 50)
-        polm_list = polm_list[:max_objects]
+        polm_list = polm_list[:50]
         
         return polm_list
 
