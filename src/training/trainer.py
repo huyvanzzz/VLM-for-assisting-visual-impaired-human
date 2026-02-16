@@ -136,7 +136,7 @@ class VLMTrainer:
         # Load adapter vào model
         print("Loading adapter weights...")
         self.model = PeftModel.from_pretrained(
-            self.model,
+            self.model, 
             checkpoint_path,
             is_trainable=True  # Quan trọng: cho phép train tiếp
         )
