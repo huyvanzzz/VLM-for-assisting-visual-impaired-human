@@ -186,8 +186,10 @@ def main():
         print(f"Loading metadata from {data_file}...")
         # Load dataset dict: {'test': ...}
         dataset_dict = load_dataset(
-            "json", # Dùng loader json local
-            data_files={"test": data_file}
+            config['data']['name'],
+            data_files={
+                "test": data_file
+            }
         )
         
         # C. Xác định image_size (Logic từ build_dataset)
