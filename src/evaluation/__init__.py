@@ -1,4 +1,4 @@
-from .metrics import compute_metrics, evaluate_predictions
+from .metrics import VLMMetrics
 from .evaluator import VLMEvaluator
 
-__all__ = ['compute_metrics', 'evaluate_predictions', 'VLMEvaluator']
+__all__ = ["VLMMetrics", "VLMEvaluator"]
