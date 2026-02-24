@@ -80,7 +80,7 @@ class WADDataset(Dataset):
                     )
                     polm_list.append(polm)
         
-        polm_list = [p for p in polm_list if p.confidence >= 0.7]
+        polm_list = [p for p in polm_list if p.confidence >= 0.6]
         
         polm_list.sort(key=lambda x: x.confidence, reverse=True)
         
