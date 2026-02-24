@@ -41,7 +41,7 @@ class VLMMetrics:
             data = json.loads(clean_str)
             return str(data.get(key, "")).strip()
         except json.JSONDecodeError:
-            return clean_str
+            return ""
 
     def fit_tfidf(self, corpus: List[str]):
         """

@@ -62,23 +62,23 @@ Detected objects:
 Analyze: location, weather, traffic, scene → then give instruction.
 
 Follow Chain-of-Thought reasoning:
-1. Perception: What objects and environment do you see?
-2. Context: Location type, weather, traffic level?
-3. Decision: What guidance should be given?"""
+1. Perception: Extract "location" (e.g., pedestrian_path, busy_street), "weather" (e.g., sunny, indoor), and "traffic" (e.g., high, moderate).
+2. Comprehension: Synthesize details into the "scene".
+3. Decision: Formulate the final "instruction"."""
 
     if question != "":
         text_content += f"\n\nQuestion: {question}"
         text_content += """
 
 Format response:
-<answer>{"location": "...", "weather": "...", "traffic": "...", "scene": "...", "instruction": "<your answer to the question>"}</answer>
+<answer>{"location": "...", "weather": "...", "traffic": "...", "scene": "<concise visual summary, max 2 sentences>", "instruction": "<your answer to the question>"}</answer>
 
 <answer>"""
     else:
         text_content += """
 
 Format response:
-<answer>{"location": "...", "weather": "...", "traffic": "...", "scene": "...", "instruction": "<navigation guidance>"}</answer>
+<answer>{"location": "...", "weather": "...", "traffic": "...", "scene": "<concise visual summary, max 2 sentences>", "instruction": "<actionable alert and guidance>"}</answer>
 
 <answer>"""
     # Tạo list content theo chuẩn OpenAI/HuggingFace

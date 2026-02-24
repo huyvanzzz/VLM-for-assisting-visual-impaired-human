@@ -12,7 +12,7 @@ model:
   lora:
     enabled: true
     r: 16                    # OK
-    alpha: 16               # Thường dùng alpha = 32 (2*r)
+    alpha: 32               # Thường dùng alpha = 32 (2*r)
     dropout: 0.05           # OK
     target_modules:
       - "q_proj"
@@ -20,9 +20,9 @@ model:
       - "v_proj"
       - "o_proj"
       # Tùy chọn thêm:
-      # - "gate_proj"
-      # - "up_proj"
-      # - "down_proj"
+      - "gate_proj"
+      - "up_proj"
+      - "down_proj"
     bias: "none"
     task_type: "CAUSAL_LM"
   
