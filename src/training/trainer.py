@@ -114,7 +114,7 @@ class VLMTrainer:
                 args=training_args,
                 train_dataset=train_dataset,
                 eval_dataset=eval_dataset,
-                tokenizer=vlm.tokenizer,
+                processing_class=vlm.processor,
                 data_collator=data_collator,
                 callbacks=callbacks
             )
