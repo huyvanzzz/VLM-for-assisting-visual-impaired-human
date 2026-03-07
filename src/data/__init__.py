@@ -6,7 +6,6 @@ __all__ = [
     'WADDataset',
     'build_dataset',
     'VLMDataCollator',
-    'POLMData',
     'GroundTruthData',
     'construct_prompt',
     'map_metadata_to_ground_truth'
