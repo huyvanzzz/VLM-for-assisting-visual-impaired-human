@@ -1,6 +1,7 @@
 import os
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
-
+import transformers
+transformers.utils.logging.disable_progress_bar()
 from transformers import Trainer, TrainingArguments
 from typing import Dict, Any, Optional
 import yaml
