@@ -138,8 +138,6 @@ class WADDataset(Dataset):
             prompt_attention_mask = inputs['attention_mask'].squeeze(0)
             pixel_values = inputs['pixel_values'].squeeze(0)
             
-            print(pixel_values.shape)
-            
             # 4. Tokenize Answer
             answer_tokens = self.tokenizer(
                 answer_text,
