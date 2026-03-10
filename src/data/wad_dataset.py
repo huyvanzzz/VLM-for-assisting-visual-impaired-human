@@ -79,11 +79,11 @@ class WADDataset(Dataset):
                         relative_position = bbox.get('relative_position', "unknown"),
                         distance_zone = bbox.get('distance_zone', 'unknown'),
                         coming_to_user = bbox.get('coming_to_user', False),
-                        speed=bbox.get('speed', 0.0)
+                        speed=bbox.get('speed', 0.0),
                     )
                     polm_list.append(polm)
                 polm_list.sort(key=lambda x: x.distance_zone, reverse=True)
-        return polm_list[:1]
+        return polm_list
 
     def _select_frames_safe(self, frame_path: str, num_frames: int = 1) -> List[int]:
         # (Giữ nguyên logic cũ của bạn)
