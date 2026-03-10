@@ -5,7 +5,7 @@ import json
 import torch
 import pickle  # Thêm pickle
 from collections import defaultdict # Thêm defaultdict
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from peft import PeftModel
 import sys
 sys.path.append('.')
@@ -47,6 +47,13 @@ def parse_args():
         default="test_alter",
         choices=["train", "valid", "test_alter", "test_QA"],
         help="Dataset split to evaluate on"
+    )
+
+    parser.add_argument(
+        "--max_samples",
+        type=int,
+        default=None,
+        help="Giới hạn số lượng mẫu để test nhanh (ví dụ: 5)"
     )
 
     return parser.parse_args()
@@ -214,6 +221,13 @@ def main():
     print(f"Split: {args.split}")
     print(f"Number of evaluation samples: {len(target_dataset)}")
     
+    if args.max_samples is not None:
+        if args.max_samples < len(target_dataset):
+            print(f"\n[INFO] QUICK TEST MODE ON: Cắt dataset xuống còn {args.max_samples} mẫu đầu tiên...")
+            target_dataset = Subset(target_dataset, range(args.max_samples))
+        else:
+            print(f"\n[INFO] max_samples ({args.max_samples}) lớn hơn tổng data. Sẽ chạy toàn bộ.")
+
     # 5. Setup DataLoader
     print("Setting up DataLoader (batch_size=1)...")
     data_collator = VLMDataCollator(tokenizer=tokenizer)
@@ -243,7 +257,7 @@ def main():
     metrics, predictions, references = evaluator.evaluate_dataset(
         eval_dataloader, 
         task_name=mode_name,
-        print_samples=5
+        print_samples=args.max_samples if args.max_samples else 5
     )
 
     # 8. Save Detailed Results
