@@ -9,7 +9,7 @@ class POLMData:
     """POLM structure from bbox annotations"""
     object_type: str
     relative_position: str
-    distance_zone: float
+    distance_zone: str
     coming_to_user: bool
     speed: float
     def to_text(self) -> str:
