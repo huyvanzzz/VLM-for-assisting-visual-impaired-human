@@ -52,6 +52,10 @@ class VLMMetrics:
         pred_texts = [self._extract_field(p, key=target_field) for p in predictions]
         ref_texts = [self._extract_field(r, key=target_field) for r in references]
 
+        # [FIX LỖI CHUỖI RỖNG] Thay thế các chuỗi rỗng bằng chữ "empty" để BERTScore không bị crash
+        pred_texts = [p if p.strip() != "" else "empty" for p in pred_texts]
+        ref_texts = [r if r.strip() != "" else "empty" for r in ref_texts]
+
         try:
             # Chú ý: Đang để mặc định lang="en". 
             # Nếu data của bạn là tiếng Việt, hãy đổi thành lang="vi"
