@@ -295,9 +295,6 @@ def main():
     print(f"  ROUGE-2: {metrics.get('ROUGE-2', 0):.2f}")
     print(f"  ROUGE-L: {metrics.get('ROUGE-L', 0):.2f}")
     print(f"  TF-IDF:  {metrics.get('TF-IDF', 0):.2f}")
-    print(f"  BERTScore F1: {metrics.get('BERTScore-F1', 0):.2f}")
-    print(f"  BERTScore Precision: {metrics.get('BERTScore-Precision', 0):.2f}")
-    print(f"  BERTScore Recall: {metrics.get('BERTScore-Recall', 0):.2f}")
 
 if __name__ == "__main__":
     main()

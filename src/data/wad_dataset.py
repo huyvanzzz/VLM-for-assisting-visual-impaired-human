@@ -8,8 +8,9 @@ import numpy as np
 import random
 from sklearn.model_selection import train_test_split
 
-from .preprocessing import construct_prompt, map_metadata_to_ground_truth
+from .preprocessing import construct_prompt, map_metadata_to_ground_truth, POLMData
 from PIL import UnidentifiedImageError
+
 
 class WADDataset(Dataset):
     def __init__(
@@ -62,28 +63,27 @@ class WADDataset(Dataset):
                     frames_dict[frame_id] = img
         return [frames_dict[fid] for fid in frame_ids]
 
-    # def _load_bboxes(self, frame_path: str, frame_ids: List[int]) -> List[POLMData]:
-    #     polm_list = []
+    def _load_bboxes(self, frame_path: str, frame_ids: List[int]) -> List[POLMData]:
+        polm_list = []
         
-    #     if frame_path not in self.bbox_by_folder:
-    #         return polm_list
+        if frame_path not in self.bbox_by_folder:
+            return polm_list
         
-    #     # Load all bboxes
-    #     for frame_id in frame_ids:
-    #         if frame_id in self.bbox_by_folder[frame_path]:
-    #             bboxes = self.bbox_by_folder[frame_path][frame_id]
-    #             for bbox in bboxes:
-    #                 polm = POLMData(
-    #                     object_type=bbox['label'],
-    #                     bbox=bbox['bbox'],
-    #                     relative_position = bbox.get('relative_position', "unknown"),
-    #                     distance_zone = bbox.get('distance_zone', 'unknown'),
-    #                     coming_to_user = bbox.get('coming_to_user', False),
-    #                     speed = bbox.get('speed', 0.0),
-    #                 )
-    #                 polm_list.append(polm)
-    #             polm_list.sort(key=lambda x: x.distance_zone, reverse=True)
-    #     return polm_list[:15]
+        # Load all bboxes
+        for frame_id in frame_ids:
+            if frame_id in self.bbox_by_folder[frame_path]:
+                bboxes = self.bbox_by_folder[frame_path][frame_id]
+                for bbox in bboxes:
+                    polm = POLMData(
+                        object_type=bbox['label'],
+                        relative_position = bbox.get('relative_position', "unknown"),
+                        distance_zone = bbox.get('distance_zone', 'unknown'),
+                        coming_to_user = bbox.get('coming_to_user', False),
+                        speed = bbox.get('speed', 0.0),
+                    )
+                    polm_list.append(polm)
+                polm_list.sort(key=lambda x: x.distance_zone, reverse=True)
+        return polm_list
 
     def _select_frames_safe(self, frame_path: str, num_frames: int = 1) -> List[int]:
         # (Giữ nguyên logic cũ của bạn)
@@ -138,6 +138,8 @@ class WADDataset(Dataset):
             prompt_attention_mask = inputs['attention_mask'].squeeze(0)
             pixel_values = inputs['pixel_values'].squeeze(0)
             
+            print(f"Sample {idx}: prompt length={len(prompt_input_ids)}, pixel_values shape={pixel_values.shape}")
+
             # 4. Tokenize Answer
             answer_tokens = self.tokenizer(
                 answer_text,
