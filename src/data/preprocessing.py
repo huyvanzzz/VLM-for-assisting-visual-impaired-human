@@ -16,7 +16,7 @@ class POLMData:
         return (
             f"[OBJ] {self.object_type}, "
             f"pos={self.relative_position}, "
-            f"dist={self.distance_zone:.2f}, "
+            f"dist={self.distance_zone}, "
             f"approaching={'yes' if self.coming_to_user else 'no'}, "
             f"speed={self.speed:.2f}."
         )
