@@ -45,7 +45,7 @@ class GroundTruthData:
 
 def construct_prompt(
     # polm_list: List[POLMData],
-    num_images: int = 1,
+    num_images: int = 3,
     metadata: Dict = None,  # ← THÊM
 ) -> List[Dict[str, Any]]:
     """

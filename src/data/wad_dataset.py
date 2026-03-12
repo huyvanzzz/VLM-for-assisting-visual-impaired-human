@@ -104,7 +104,7 @@ class WADDataset(Dataset):
     #         selected.append(available_frames[-1])
     #     return selected[:num_frames]
 
-    def _select_frames_safe(self, frame_path: str, num_frames: int = 1) -> List[int]:
+    def _select_frames_safe(self, frame_path: str, num_frames: int = 3) -> List[int]:
         if frame_path not in self.frame_index:
             raise ValueError(f"Frame path not in index: {frame_path}")
             
