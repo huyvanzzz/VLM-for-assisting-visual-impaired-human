@@ -4,25 +4,25 @@ from typing import List, Dict
 
 from traitlets import Any
 
-@dataclass
-class POLMData:
-    """POLM structure from bbox annotations"""
-    object_type: str
-    relative_position: str
-    distance_zone: str
-    coming_to_user: bool
-    speed: str
-    size: int
-    danger_score: float # ← THÊM thuộc tính mới
-    def to_text(self) -> str:
-        return (
-            f"[OBJ]: {self.object_type}, "
-            f"size: {self.size}, "
-            f"pos: {self.relative_position}, "
-            f"dist: {self.distance_zone}, "
-            f"approaching: {'yes' if self.coming_to_user else 'no'}, "
-            f"speed: {self.speed}."
-        )
+# @dataclass
+# class POLMData:
+#     """POLM structure from bbox annotations"""
+#     object_type: str
+#     relative_position: str
+#     distance_zone: str
+#     coming_to_user: bool
+#     speed: str
+#     size: int
+#     danger_score: float # ← THÊM thuộc tính mới
+#     def to_text(self) -> str:
+#         return (
+#             f"[OBJ]: {self.object_type}, "
+#             f"size: {self.size}, "
+#             f"pos: {self.relative_position}, "
+#             f"dist: {self.distance_zone}, "
+#             f"approaching: {'yes' if self.coming_to_user else 'no'}, "
+#             f"speed: {self.speed}."
+#         )
 
 @dataclass
 class GroundTruthData:
@@ -44,7 +44,7 @@ class GroundTruthData:
         }, ensure_ascii=False)
 
 def construct_prompt(
-    polm_list: List[POLMData],
+    # polm_list: List[POLMData],
     num_images: int = 1,
     metadata: Dict = None,  # ← THÊM
 ) -> List[Dict[str, Any]]:
@@ -52,7 +52,7 @@ def construct_prompt(
     Construct model input messages (Updated for apply_chat_template)
     """
     
-    polm_text = "\n".join([f"- {polm.to_text()}" for polm in polm_list])
+    # polm_text = "\n".join([f"- {polm.to_text()}" for polm in polm_list])
     
     question = ""
     if metadata and metadata.get('QA') and metadata['QA'].get('Q'):
@@ -60,9 +60,6 @@ def construct_prompt(
     
     # Tạo nội dung text hướng dẫn (Prompt)
     text_content = f"""You are a navigation assistant for blind people.
-
-Detected objects:
-{polm_text}
 
 Analyze: location, weather, traffic, scene → then give instruction.
 

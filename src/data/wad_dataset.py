@@ -63,46 +63,66 @@ class WADDataset(Dataset):
                     frames_dict[frame_id] = img
         return [frames_dict[fid] for fid in frame_ids]
 
-    def _load_bboxes(self, frame_path: str, frame_ids: List[int]) -> List[POLMData]:
-        polm_list = []
+    # def _load_bboxes(self, frame_path: str, frame_ids: List[int]) -> List[POLMData]:
+    #     polm_list = []
         
-        if frame_path not in self.bbox_by_folder:
-            return polm_list
+    #     if frame_path not in self.bbox_by_folder:
+    #         return polm_list
         
-        # Load all bboxes
-        for frame_id in frame_ids:
-            if frame_id in self.bbox_by_folder[frame_path]:
-                bboxes = self.bbox_by_folder[frame_path][frame_id]
-                for bbox in bboxes:
-                    polm = POLMData(
-                        object_type=bbox['label'],
-                        relative_position = bbox.get('relative_position', "unknown"),
-                        distance_zone = bbox.get('distance_zone', 'unknown'),
-                        coming_to_user = bbox.get('coming_to_user', False),
-                        speed=bbox.get('speed', 'unknown'),
-                        size=bbox.get('size', 0),
-                        danger_score=bbox.get('danger_score', 0.0)
-                    )
-                    polm_list.append(polm)
-                    polm_list = sorted(polm_list, key=lambda x: x.danger_score, reverse=True)
-        return polm_list
+    #     # Load all bboxes
+    #     for frame_id in frame_ids:
+    #         if frame_id in self.bbox_by_folder[frame_path]:
+    #             bboxes = self.bbox_by_folder[frame_path][frame_id]
+    #             for bbox in bboxes:
+    #                 polm = POLMData(
+    #                     object_type=bbox['label'],
+    #                     relative_position = bbox.get('relative_position', "unknown"),
+    #                     distance_zone = bbox.get('distance_zone', 'unknown'),
+    #                     coming_to_user = bbox.get('coming_to_user', False),
+    #                     speed=bbox.get('speed', 'unknown'),
+    #                     size=bbox.get('size', 0),
+    #                     danger_score=bbox.get('danger_score', 0.0)
+    #                 )
+    #                 polm_list.append(polm)
+    #                 polm_list = sorted(polm_list, key=lambda x: x.danger_score, reverse=True)
+    #     return polm_list
+
+    # def _select_frames_safe(self, frame_path: str, num_frames: int = 1) -> List[int]:
+    #     # (Giữ nguyên logic cũ của bạn)
+    #     if frame_path not in self.frame_index:
+    #         raise ValueError(f"Frame path not in index: {frame_path}")
+    #     available_frames = sorted(self.frame_index[frame_path].keys())
+    #     if len(available_frames) == 0:
+    #         raise ValueError(f"No frames in {frame_path}")
+    #     if num_frames == 1:
+    #         return [available_frames[-1]]
+    #     if len(available_frames) >= num_frames:
+    #         indices = np.linspace(0, len(available_frames) - 1, num_frames, dtype=int)
+    #         return [available_frames[i] for i in indices]
+    #     selected = available_frames.copy()
+    #     while len(selected) < num_frames:
+    #         selected.append(available_frames[-1])
+    #     return selected[:num_frames]
 
     def _select_frames_safe(self, frame_path: str, num_frames: int = 1) -> List[int]:
-        # (Giữ nguyên logic cũ của bạn)
         if frame_path not in self.frame_index:
             raise ValueError(f"Frame path not in index: {frame_path}")
+            
         available_frames = sorted(self.frame_index[frame_path].keys())
+        
         if len(available_frames) == 0:
             raise ValueError(f"No frames in {frame_path}")
-        if num_frames == 1:
-            return [available_frames[-1]]
-        if len(available_frames) >= num_frames:
-            indices = np.linspace(0, len(available_frames) - 1, num_frames, dtype=int)
-            return [available_frames[i] for i in indices]
-        selected = available_frames.copy()
-        while len(selected) < num_frames:
-            selected.append(available_frames[-1])
-        return selected[:num_frames]
+
+        # --- THÊM CODE CỨNG (HARDCODE) Ở ĐÂY ---
+        target_frames = [4, 6, 8]
+        
+        # Kiểm tra an toàn: Đảm bảo các frame 4, 6, 8 thực sự có mặt trong available_frames
+        for frame in target_frames:
+            if frame not in available_frames:
+                raise ValueError(f"Hardcoded frame {frame} không tồn tại trong {frame_path}. Các frame hiện có: {available_frames}")
+                
+        # Trả về trực tiếp 3 frame đã fix cứng
+        return target_frames
 
     def __getitem__(self, idx):
         try:
@@ -113,10 +133,10 @@ class WADDataset(Dataset):
             # 1. Load Data
             frame_ids = self._select_frames_safe(frame_path, num_frames=self.num_frames)
             frames = self._load_frames(frame_path, frame_ids)
-            polm_list = self._load_bboxes(frame_path, frame_ids)
+            # polm_list = self._load_bboxes(frame_path, frame_ids)
             
             # 2. Tạo Text Prompt
-            messages = construct_prompt(num_images=self.num_frames, metadata=sample, polm_list=polm_list) # Lưu ý: thêm self. nếu hàm nằm trong class, hoặc giữ nguyên nếu là hàm ngoài
+            messages = construct_prompt(num_images=self.num_frames, metadata=sample) # Lưu ý: thêm self. nếu hàm nằm trong class, hoặc giữ nguyên nếu là hàm ngoài
             
             prompt_text = self.processor.apply_chat_template(
                 messages,
@@ -213,7 +233,7 @@ def build_dataset(config: Dict, processor, tokenizer):
     print("Loading bboxes...")
     bbox_dataset = load_dataset(
         config['data']['name'],
-        data_files="all_bboxes.jsonl",
+        data_files="all_bboxes_1.jsonl",
         split="train"
     )
     
