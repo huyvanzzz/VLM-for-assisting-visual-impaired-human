@@ -41,7 +41,7 @@ model:
 data:
   name: "minhdang0901/WAD_Images_All_Size"
   
-  num_frames: 1
+  num_frames: 3
   train_split: 0.9
   seed: 42
 
