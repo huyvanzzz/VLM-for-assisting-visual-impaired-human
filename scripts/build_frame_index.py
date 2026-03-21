@@ -34,7 +34,7 @@ def main():
     shard_paths = []
     for shard_name in tqdm(tar_files):
         shard_path = hf_hub_download(
-            repo_id="minhdang0901/WAD_Images",
+            repo_id="minhdang0901/KFTrack_Inference",
             filename=shard_name,
             repo_type="dataset"
         )
