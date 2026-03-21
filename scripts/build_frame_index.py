@@ -27,7 +27,7 @@ def main():
         if response.lower() != 'y':
             return
     
-    tar_files = [f"shard_{i:05d}.tar" for i in range(23)]
+    tar_files = ["shard_00000.tar"]
     print(f"\n[1] TAR shards: {len(tar_files)}")
     
     print("\n[2] Downloading shards...")
