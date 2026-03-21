@@ -78,7 +78,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Inference for Navigation VLM")
     parser.add_argument("--config", type=str, required=True, help="Path to config.yaml")
     parser.add_argument("--checkpoint", type=str, default=None, help="Path to LoRA checkpoint.")
-    parser.add_argument("--input_data", type=str, required=True, help="File JSON chứa list data cần inference")
+    parser.add_argument("--input_data", type=str, required=False, help="File JSON chứa list data cần inference")
     parser.add_argument("--output_file", type=str, default="inference_results.json")
     return parser.parse_args()
 
