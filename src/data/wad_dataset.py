@@ -8,9 +8,8 @@ import numpy as np
 import random
 from sklearn.model_selection import train_test_split
 
-from .preprocessing import construct_prompt, map_metadata_to_ground_truth
+from .preprocessing import POLMData, construct_prompt, map_metadata_to_ground_truth
 from PIL import UnidentifiedImageError
-
 
 class WADDataset(Dataset):
     def __init__(
@@ -21,10 +20,11 @@ class WADDataset(Dataset):
         processor,
         tokenizer,
         split: str = 'train',
-        num_frames: int = 3,
-        image_size: tuple = None
+        num_frames: int = 1,
+        image_size: tuple = None,
+        frame_step: int = 2,
     ):
-        self.metadata = metadata_dataset[split]
+        raw_metadata = metadata_dataset[split]
         self.frame_index = frame_index
         self.bbox_by_folder = bbox_by_folder
         self.processor = processor
@@ -32,10 +32,23 @@ class WADDataset(Dataset):
         self.split = split
         self.num_frames = num_frames
         self.image_size = image_size
-        
+        self.frame_step = frame_step
         # Cấu hình Tokenizer để tiết kiệm token
         self.tokenizer.padding_side = "right" # Quan trọng cho training
         self.tokenizer.truncation_side = "right" # Quan trọng cho training
+        self.metadata = []
+        for item in raw_metadata:
+            if 'frame_id' in item:
+                target_id = int(item['frame_id'])
+                # FIX CỨNG: Nếu dùng 3 frames, bắt buộc frame_id phải >= 4
+                if self.num_frames == 3:
+                    if target_id >= 4:
+                        self.metadata.append(item)
+                # Nếu 1 frame thì lấy hết
+                elif self.num_frames == 1:
+                    self.metadata.append(item)
+            else:
+                self.metadata.append(item)
     def __len__(self):
         return len(self.metadata)
 
@@ -63,29 +76,29 @@ class WADDataset(Dataset):
                     frames_dict[frame_id] = img
         return [frames_dict[fid] for fid in frame_ids]
 
-    # def _load_bboxes(self, frame_path: str, frame_ids: List[int]) -> List[POLMData]:
-    #     polm_list = []
+    def _load_bboxes(self, frame_path: str, frame_ids: List[int]) -> List[POLMData]:
+        polm_list = []
         
-    #     if frame_path not in self.bbox_by_folder:
-    #         return polm_list
+        if frame_path not in self.bbox_by_folder:
+            return polm_list
         
-    #     # Load all bboxes
-    #     for frame_id in frame_ids:
-    #         if frame_id in self.bbox_by_folder[frame_path]:
-    #             bboxes = self.bbox_by_folder[frame_path][frame_id]
-    #             for bbox in bboxes:
-    #                 polm = POLMData(
-    #                     object_type=bbox['label'],
-    #                     relative_position = bbox.get('relative_position', "unknown"),
-    #                     distance_zone = bbox.get('distance_zone', 'unknown'),
-    #                     coming_to_user = bbox.get('coming_to_user', False),
-    #                     speed=bbox.get('speed', 'unknown'),
-    #                     size=bbox.get('size', 0),
-    #                     danger_score=bbox.get('danger_score', 0.0)
-    #                 )
-    #                 polm_list.append(polm)
-    #                 polm_list = sorted(polm_list, key=lambda x: x.danger_score, reverse=True)
-    #     return polm_list
+        # Load all bboxes
+        for frame_id in frame_ids:
+            if frame_id in self.bbox_by_folder[frame_path]:
+                bboxes = self.bbox_by_folder[frame_path][frame_id]
+                for bbox in bboxes:
+                    polm = POLMData(
+                        object_type=bbox['label'],
+                        bbox=bbox['bbox'],
+                        relative_position = bbox.get('relative_position', "unknown"),
+                        distance_zone = bbox.get('distance_zone', 'unknown'),
+                        coming_to_user = bbox.get('coming_to_user', False),
+                        speed = bbox.get('speed', 0.0),
+                        danger_score = bbox.get('danger_score', 0.0),
+                    )
+                    polm_list.append(polm)
+                polm_list.sort(key=lambda x: x.danger_score, reverse=True)
+        return polm_list[:30]
 
     # def _select_frames_safe(self, frame_path: str, num_frames: int = 1) -> List[int]:
     #     # (Giữ nguyên logic cũ của bạn)
@@ -104,39 +117,54 @@ class WADDataset(Dataset):
     #         selected.append(available_frames[-1])
     #     return selected[:num_frames]
 
-    def _select_frames_safe(self, frame_path: str, num_frames: int = 3) -> List[int]:
-        if frame_path not in self.frame_index:
-            raise ValueError(f"Frame path not in index: {frame_path}")
+    def _get_target_frames(self, folder_id: str, target_frame_id: int) -> List[int]:
+        """Fix cứng logic cho 1 frame và 3 frames (cách nhau 2 bước)"""
+        
+        # Trường hợp 1: Lấy 1 frame
+        if self.num_frames == 1:
+            return [target_frame_id]
             
-        available_frames = sorted(self.frame_index[frame_path].keys())
-        
-        if len(available_frames) == 0:
-            raise ValueError(f"No frames in {frame_path}")
-
-        # --- THÊM CODE CỨNG (HARDCODE) Ở ĐÂY ---
-        target_frames = [4, 6, 8]
-        
-        # Kiểm tra an toàn: Đảm bảo các frame 4, 6, 8 thực sự có mặt trong available_frames
-        for frame in target_frames:
-            if frame not in available_frames:
-                raise ValueError(f"Hardcoded frame {frame} không tồn tại trong {frame_path}. Các frame hiện có: {available_frames}")
+        # Trường hợp 2: Lấy 3 frames (Target-4, Target-2, Target)
+        elif self.num_frames == 3:
+            ideal_frames = [target_frame_id - 4, target_frame_id - 2, target_frame_id]
+            
+            # Check bảo hiểm nhỡ ổ cứng mất file
+            if folder_id not in self.frame_index:
+                return [target_frame_id] * 3
                 
-        # Trả về trực tiếp 3 frame đã fix cứng
-        return target_frames
+            available_frames = set(self.frame_index[folder_id].keys())
+            actual_frames = []
+            
+            for f_id in ideal_frames:
+                if f_id in available_frames:
+                    actual_frames.append(f_id)
+                else:
+                    # Lấy frame trước đó bù vào nếu thiếu file vật lý
+                    actual_frames.append(actual_frames[-1] if actual_frames else target_frame_id)
+                    
+            return actual_frames
+            
+        # Chặn các trường hợp cấu hình sai (vd: num_frames = 2, 4, 5...)
+        else:
+            raise ValueError(f"Code đang fix cứng cho 1 hoặc 3 frames. Bạn đang truyền num_frames={self.num_frames}")
 
     def __getitem__(self, idx):
         try:
-            # --- BẮT ĐẦU LOGIC CŨ ---
             sample = self.metadata[idx]
-            frame_path = sample['frame_path']
+            folder_id = str(sample.get('folder_id', sample.get('frame_path')))
             
-            # 1. Load Data
-            frame_ids = self._select_frames_safe(frame_path, num_frames=self.num_frames)
-            frames = self._load_frames(frame_path, frame_ids)
-            # polm_list = self._load_bboxes(frame_path, frame_ids)
+            if 'frame_id' in sample:
+                target_frame_id = int(sample['frame_id'])
+                # Gọi hàm fix cứng
+                frame_ids = self._get_target_frames(folder_id, target_frame_id)
+            else:
+                raise ValueError("Data cũ không có 'frame_id'.")
+
+            frames = self._load_frames(folder_id, frame_ids)
+            polm_list = self._load_bboxes(folder_id, frame_ids)
             
             # 2. Tạo Text Prompt
-            messages = construct_prompt(num_images=self.num_frames, metadata=sample) # Lưu ý: thêm self. nếu hàm nằm trong class, hoặc giữ nguyên nếu là hàm ngoài
+            messages = construct_prompt(polm_list, num_images=self.num_frames, metadata=sample) # Lưu ý: thêm self. nếu hàm nằm trong class, hoặc giữ nguyên nếu là hàm ngoài
             
             prompt_text = self.processor.apply_chat_template(
                 messages,
@@ -159,7 +187,7 @@ class WADDataset(Dataset):
             prompt_input_ids = inputs['input_ids'].squeeze(0)
             prompt_attention_mask = inputs['attention_mask'].squeeze(0)
             pixel_values = inputs['pixel_values'].squeeze(0)
-            
+
             # 4. Tokenize Answer
             answer_tokens = self.tokenizer(
                 answer_text,
@@ -233,7 +261,7 @@ def build_dataset(config: Dict, processor, tokenizer):
     print("Loading bboxes...")
     bbox_dataset = load_dataset(
         config['data']['name'],
-        data_files="all_bboxes_1.jsonl",
+        data_files="all_bboxes.jsonl",
         split="train"
     )
     
@@ -244,12 +272,13 @@ def build_dataset(config: Dict, processor, tokenizer):
         
         bbox_by_folder[folder_id][frame_id].append({
             'label': bbox_entry['label'],
+            'confidence': bbox_entry['probs'],
+            'bbox': bbox_entry['boxs'],
             'relative_position': bbox_entry.get('relative_position', "unknown"),
             'distance_zone': bbox_entry.get('distance_zone', 'unknown'),
             'coming_to_user': bbox_entry.get('coming_to_user', False),
-            'speed': bbox_entry.get('speed', 'unknown'),
-            'size': bbox_entry.get('size', 0),
-            'danger_score': bbox_entry.get('danger_score', 0.0)
+            'speed': bbox_entry.get('speed', 0.0),
+            'danger_score': bbox_entry.get('danger_score', 0.0),
         })
     
     # Load frame index

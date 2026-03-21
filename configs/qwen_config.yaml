@@ -39,9 +39,9 @@ model:
     max_pixels: 1003520
 
 data:
-  name: "minhdang0901/WAD_Images_All_Size"
+  name: "minhdang0901/KFTrack_Inference"
   
-  num_frames: 3
+  num_frames: 1
   train_split: 0.9
   seed: 42
 

@@ -1,5 +1,5 @@
 ---
-base_model: ''
+base_model: Qwen/Qwen2-VL-2B-Instruct
 library_name: peft
 pipeline_tag: text-generation
 tags:
@@ -204,4 +204,4 @@ Carbon emissions can be estimated using the [Machine Learning Impact calculator]
 [More Information Needed]
 ### Framework versions
 
-- PEFT 0.17.1
+- PEFT 0.18.1
