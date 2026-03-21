@@ -21,8 +21,7 @@ class WADDataset(Dataset):
         tokenizer,
         split: str = 'train',
         num_frames: int = 1,
-        image_size: tuple = None,
-        frame_step: int = 2,
+        image_size: tuple = None
     ):
         raw_metadata = metadata_dataset[split]
         self.frame_index = frame_index
@@ -32,7 +31,7 @@ class WADDataset(Dataset):
         self.split = split
         self.num_frames = num_frames
         self.image_size = image_size
-        self.frame_step = frame_step
+        
         # Cấu hình Tokenizer để tiết kiệm token
         self.tokenizer.padding_side = "right" # Quan trọng cho training
         self.tokenizer.truncation_side = "right" # Quan trọng cho training
@@ -209,6 +208,8 @@ class WADDataset(Dataset):
                 torch.full((len(prompt_input_ids),), -100, dtype=torch.long),
                 answer_input_ids
             ], dim=0)
+
+            print(f"📏 Total: {len(input_ids)} = {len(prompt_input_ids)} + {len(answer_input_ids)}")
 
             # 6. Return
             return_dict = {

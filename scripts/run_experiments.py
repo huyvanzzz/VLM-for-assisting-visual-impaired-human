@@ -8,63 +8,136 @@ from collections import defaultdict
 from torch.utils.data import DataLoader
 from peft import PeftModel
 from tqdm import tqdm
+from datasets import load_dataset
+from PIL import UnidentifiedImageError
+
 import sys
 sys.path.append('.')
 
-# Import project modules
+# Import từ source code của bạn
 from src.models.model_registry import build_model
 from src.data.wad_dataset import WADDataset
+from src.data.preprocessing import construct_prompt
 from src.data.data_collator import VLMDataCollator
-from datasets import load_dataset
 
+# ==========================================
+# GHI ĐÈ DATASET ĐỂ CHỈ LẤY PROMPT (BỎ GROUND TRUTH)
+# ==========================================
+class WADInferenceDataset(WADDataset):
+    def __getitem__(self, idx):
+        try:
+            sample = self.metadata[idx]
+            folder_id = str(sample.get('folder_id', sample.get('frame_path')))
+            target_frame_id = int(sample['frame_id'])
+            
+            # 1. Load ảnh và bbox (Dùng y hệt logic gốc của bạn)
+            frame_ids = self._get_target_frames(folder_id, target_frame_id)
+            frames = self._load_frames(folder_id, frame_ids)
+            polm_list = self._load_bboxes(folder_id, frame_ids)
+            
+            # 2. Tạo Text Prompt (Nạp toàn bộ môi trường động vào prompt)
+            messages = construct_prompt(polm_list, num_images=self.num_frames, metadata=sample) 
+            prompt_text = self.processor.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True
+            )
+
+            # 3. Xử lý Prompt + Image qua Processor (KHÔNG CÓ ANSWER TEXT VÀ LABELS)
+            inputs = self.processor(
+                text=prompt_text,
+                images=frames,
+                return_tensors="pt",
+                truncation=False,
+                padding=False
+            )
+            
+            return_dict = {
+                'input_ids': inputs['input_ids'].squeeze(0),
+                'attention_mask': inputs['attention_mask'].squeeze(0),
+                'pixel_values': inputs['pixel_values'].squeeze(0),
+                'sample_idx': idx  # Truyền thêm idx để lúc lưu file biết kết quả của sample nào
+            }
+            
+            if 'image_sizes' in inputs:
+                return_dict['image_sizes'] = inputs['image_sizes'].squeeze(0)
+            if 'image_grid_thw' in inputs:
+                return_dict['image_grid_thw'] = inputs['image_grid_thw'].squeeze(0)
+            
+            return return_dict
+
+        except (UnidentifiedImageError, OSError, IOError, Exception) as e:
+            # Trong Inference, nếu lỗi thì trả về None để bỏ qua, không lấy random
+            print(f"\n⚠️ Lỗi ở sample {idx} (folder_id: {folder_id}, frame_id: {target_frame_id}): {str(e)}")
+            return None
+
+# ==========================================
+# CÁC HÀM XỬ LÝ CHÍNH
+# ==========================================
 def parse_args():
-    parser = argparse.ArgumentParser(description="Pure Inference for Navigation VLM")
+    parser = argparse.ArgumentParser(description="Inference for Navigation VLM")
     parser.add_argument("--config", type=str, required=True, help="Path to config.yaml")
     parser.add_argument("--checkpoint", type=str, default=None, help="Path to LoRA checkpoint.")
-    # Truyền thẳng file data thực tế vào đây, không test_alter gì nữa
-    parser.add_argument("--input_data", type=str, required=True, help="Path to your real data JSON file") 
+    parser.add_argument("--input_data", type=str, required=True, help="File JSON chứa list data cần inference")
     parser.add_argument("--output_file", type=str, default="inference_results.json")
     return parser.parse_args()
 
 def prepare_auxiliary_data(config):
-    index_file = "./wad_dataset/frame_index.pkl"
-    with open(index_file, 'rb') as f:
+    # 1. Load frame index
+    print("Loading frame index...")
+    with open("./wad_dataset/frame_index.pkl", 'rb') as f:
         frame_index = pickle.load(f)
 
+    # 2. Load bboxes (CHÚ Ý: Lấy đúng file all_bboxes_2.jsonl của bạn)
+    print("Loading bboxes from all_bboxes.jsonl...")
     bbox_file = "all_bboxes.jsonl"
     if os.path.exists(bbox_file):
         bbox_dataset = load_dataset("json", data_files=bbox_file, split="train")
     else:
-        bbox_dataset = load_dataset(config['data']['name'], data_files="all_bboxes.jsonl", split="train")
+        bbox_dataset = load_dataset(config['data']['name'], data_files=bbox_file, split="train")
 
     bbox_by_folder = defaultdict(lambda: defaultdict(list))
-    for bbox_entry in bbox_dataset:
-        folder_id = bbox_entry['folder_id']
-        frame_id = bbox_entry['frame_id']
-        
+    for entry in bbox_dataset:
+        folder_id = entry['folder_id']
+        frame_id = entry['frame_id']
         bbox_by_folder[folder_id][frame_id].append({
-            'label': bbox_entry['label'],
-            'confidence': bbox_entry['probs'],
-            'bbox': bbox_entry['boxs'],
-            'relative_position': bbox_entry.get('relative_position', "unknown"),
-            'distance_zone': bbox_entry.get('distance_zone', 'unknown'),
-            'coming_to_user': bbox_entry.get('coming_to_user', False),
-            'speed': bbox_entry.get('speed', 0.0),
-            'danger_score': bbox_entry.get('danger_score', 0.0),
+            'label': entry['label'],
+            'confidence': entry['probs'],
+            'bbox': entry['boxs'],
+            'relative_position': entry.get('relative_position', "unknown"),
+            'distance_zone': entry.get('distance_zone', 'unknown'),
+            'coming_to_user': entry.get('coming_to_user', False),
+            'speed': entry.get('speed', 0.0),
+            'danger_score': entry.get('danger_score', 0.0),
         })
     return frame_index, bbox_by_folder
+
+def custom_collate_fn(batch, tokenizer):
+    # Lọc bỏ các sample bị lỗi (None)
+    batch = [b for b in batch if b is not None]
+    if not batch:
+        return None
+    
+    # Tách sample_idx ra khỏi batch để collator gốc không bị bối rối
+    sample_indices = [b.pop('sample_idx') for b in batch]
+    
+    # Dùng data collator gốc của bạn
+    collator = VLMDataCollator(tokenizer=tokenizer)
+    collated_batch = collator(batch)
+    
+    # Nhét lại indices vào batch
+    collated_batch['sample_indices'] = sample_indices
+    return collated_batch
 
 def extract_instruction(raw_text: str) -> str:
     text = raw_text.strip()
     if "<answer>" in text: text = text.split("<answer>")[-1]
     if "</answer>" in text: text = text.split("</answer>")[0]
-    text = text.strip()
-    
     try:
-        data = json.loads(text)
+        data = json.loads(text.strip())
         return str(data.get("instruction", "")).strip()
-    except json.JSONDecodeError:
-        return text
+    except:
+        return text.strip()
 
 def main():
     args = parse_args()
@@ -83,7 +156,7 @@ def main():
         print(f"Loading LoRA from {args.checkpoint}...")
         model = PeftModel.from_pretrained(
             model, args.checkpoint,
-            torch_dtype=torch.bfloat16 if config['training'].get('bf16', False) else torch.float16,
+            torch_dtype=torch.bfloat16 if config.get('training', {}).get('bf16') else torch.float16,
             is_trainable=False
         )
     
@@ -91,22 +164,37 @@ def main():
     model.to(device)
     model.eval()
 
-    # --- ĐỌC DỮ LIỆU THỰC TẾ ---
-    print(f"Loading real data from: {args.input_data}...")
+    # --- ĐỌC DỮ LIỆU ---
     frame_index, bbox_by_folder = prepare_auxiliary_data(config)
     
-    dataset_dict = load_dataset("json", data_files={"test": args.input_data})
-    raw_data_list = [item for item in dataset_dict["test"]]
+    # Thay vì load file local, mình load trực tiếp từ repo Hugging Face của bạn
+    print(f"Loading inference data (all_folder_frame.jsonl) from Hugging Face...")
+    dataset_dict = load_dataset(
+        config['data']['name'], 
+        data_files={"test": "all_folder_frame.jsonl"} # Tên file trên HF của bạn
+    )
+    raw_metadata = dataset_dict["test"]
     
     image_size = None if config['model']['architecture'] == 'qwen' else tuple(config['model']['vision']['image_size'])
-    target_dataset = WADDataset(
-        metadata_dataset=dataset_dict, frame_index=frame_index, bbox_by_folder=bbox_by_folder,
-        processor=processor, tokenizer=tokenizer, split='test',
-        num_frames=config['data'].get('num_frames', 1), image_size=image_size
+    
+    # KHỞI TẠO DATASET KẾ THỪA
+    target_dataset = WADInferenceDataset(
+        metadata_dataset=dataset_dict,
+        frame_index=frame_index,
+        bbox_by_folder=bbox_by_folder,
+        processor=processor,
+        tokenizer=tokenizer,
+        split='test',
+        num_frames=config['data'].get('num_frames', 1),
+        image_size=image_size
     )
     
-    data_collator = VLMDataCollator(tokenizer=tokenizer)
-    eval_dataloader = DataLoader(target_dataset, batch_size=1, shuffle=False, collate_fn=data_collator)
+    eval_dataloader = DataLoader(
+        target_dataset, 
+        batch_size=1, # Giữ batch_size = 1 để inference an toàn
+        shuffle=False, 
+        collate_fn=lambda b: custom_collate_fn(b, tokenizer)
+    )
 
     gen_config = {
         "max_new_tokens": 256,
@@ -117,51 +205,52 @@ def main():
     }
     
     results = []
-    print("\nStarting Inference...")
+    print("\nBắt đầu chạy Inference...")
     
-    for i, batch in enumerate(tqdm(eval_dataloader, desc="Inferencing")):
-        # TRONG INFERENCE THỰC TẾ: Không có labels, input_ids chính là toàn bộ prompt đầu vào.
+    for batch in tqdm(eval_dataloader, desc="Inferencing"):
+        if batch is None:
+            continue # Bỏ qua nếu data lỗi
+
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch.get('attention_mask', torch.ones_like(input_ids)).to(device)
+        sample_indices = batch.pop('sample_indices')
 
-        single_input = {
+        inputs = {
             'input_ids': input_ids,
             'attention_mask': attention_mask
         }
-        
         if 'pixel_values' in batch:
-            single_input['pixel_values'] = batch['pixel_values'].to(device)
-            if 'image_grid_thw' in batch: single_input['image_grid_thw'] = batch['image_grid_thw'].to(device)
-            if 'image_sizes' in batch: single_input['image_sizes'] = batch['image_sizes'].to(device)
+            inputs['pixel_values'] = batch['pixel_values'].to(device)
+            if 'image_grid_thw' in batch: inputs['image_grid_thw'] = batch['image_grid_thw'].to(device)
+            if 'image_sizes' in batch: inputs['image_sizes'] = batch['image_sizes'].to(device)
 
         with torch.no_grad():
-            outputs = model.generate(**single_input, **gen_config)
+            outputs = model.generate(**inputs, **gen_config)
         
-        # Bỏ qua phần prompt ban đầu, chỉ lấy những token mới được model sinh ra
         prompt_length = input_ids.shape[1]
-        generated_ids = outputs[0][prompt_length:]
-        raw_output_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
-            
-        final_instruction = extract_instruction(raw_output_text)
         
-        # Gắn ID
-        result_item = {}
-        if i < len(raw_data_list):
-            item_data = raw_data_list[i]
-            if 'folder_id' in item_data: result_item["folder_id"] = item_data['folder_id']
-            if 'frame_id' in item_data: result_item["frame_id"] = item_data['frame_id']
-                
-        if not result_item:
-            result_item["id"] = str(i)
+        # Xử lý kết quả cho từng sample trong batch (mặc dù hiện tại batch_size=1)
+        for i, sample_idx in enumerate(sample_indices):
+            generated_ids = outputs[i][prompt_length:]
+            raw_output_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+            
+            final_instruction = extract_instruction(raw_output_text)
+            
+            # Lấy lại metadata ban đầu để map kết quả
+            original_sample = raw_metadata[sample_idx]
+            
+            results.append({
+                "folder_id": original_sample.get('folder_id', original_sample.get('frame_path', "")),
+                "frame_id": original_sample.get('frame_id', ""),
+                "instruction": final_instruction
+            })
 
-        result_item["instruction"] = final_instruction
-        results.append(result_item)
-
+    # --- LƯU KẾT QUẢ ---
     os.makedirs(os.path.dirname(args.output_file) if os.path.dirname(args.output_file) else ".", exist_ok=True)
     with open(args.output_file, "w", encoding='utf-8') as f:
         json.dump(results, f, indent=4, ensure_ascii=False)
         
-    print(f"\n✓ DONE! Saved {len(results)} items to {args.output_file}")
+    print(f"\n✓ Xong! Đã lưu {len(results)} kết quả vào {args.output_file}")
 
 if __name__ == "__main__":
     main()
