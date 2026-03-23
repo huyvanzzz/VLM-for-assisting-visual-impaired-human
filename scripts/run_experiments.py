@@ -233,7 +233,7 @@ def main():
     
     results = []
     print("\nBắt đầu chạy Inference...")
-    
+    print_count = 0
     for batch in tqdm(eval_dataloader, desc="Inferencing"):
         if batch is None:
             continue # Bỏ qua nếu data lỗi
@@ -265,10 +265,22 @@ def main():
             
             # Lấy lại metadata ban đầu để map kết quả
             original_sample = raw_metadata[sample_idx]
+            folder_id = original_sample.get('folder_id', original_sample.get('frame_path', ""))
+            frame_id = original_sample.get('frame_id', "")
             
+            # <--- THÊM ĐOẠN IN KẾT QUẢ VÀO ĐÂY --->
+            if print_count < 3:
+                print(f"\n[{print_count+1}/3] Kết quả mẫu:")
+                print(f"  - Thư mục : {folder_id}")
+                print(f"  - Frame ID: {frame_id}")
+                print(f"  - AI sinh : {final_instruction}")
+                print("-" * 50)
+                print_count += 1
+            # <----------------------------------->
+
             results.append({
-                "folder_id": original_sample.get('folder_id', original_sample.get('frame_path', "")),
-                "frame_id": original_sample.get('frame_id', ""),
+                "folder_id": folder_id,
+                "frame_id": frame_id,
                 "instruction": final_instruction
             })
 
