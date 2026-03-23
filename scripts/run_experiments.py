@@ -121,7 +121,6 @@ def custom_collate_fn(batch, tokenizer):
     # Tách sample_idx ra khỏi batch
     sample_indices = [b.pop('sample_idx') for b in batch]
     
-    # --- TỰ BUID COLLATOR DÀNH RIÊNG CHO INFERENCE (BỎ LABELS) ---
     pad_token_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
     
     collated_batch = {
@@ -129,13 +128,29 @@ def custom_collate_fn(batch, tokenizer):
         'attention_mask': torch.nn.utils.rnn.pad_sequence([b['attention_mask'] for b in batch], batch_first=True, padding_value=0),
     }
     
-    # Gộp các tensor của ảnh (nếu có)
+    # Xử lý pixel_values
     if 'pixel_values' in batch[0]:
-        collated_batch['pixel_values'] = torch.cat([b['pixel_values'] for b in batch])
+        collated_batch['pixel_values'] = torch.cat([b['pixel_values'] for b in batch], dim=0)
+    
+    # Xử lý image_sizes (Thêm unsqueeze để giữ shape)
     if 'image_sizes' in batch[0]:
-        collated_batch['image_sizes'] = torch.cat([b['image_sizes'] for b in batch])
+        sizes_list = []
+        for b in batch:
+            size = b['image_sizes']
+            if isinstance(size, torch.Tensor) and size.dim() == 1:
+                size = size.unsqueeze(0)
+            sizes_list.append(size)
+        collated_batch['image_sizes'] = torch.cat(sizes_list, dim=0)
+        
+    # Xử lý image_grid_thw (KHẮC PHỤC LỖI INDEX Ở ĐÂY)
     if 'image_grid_thw' in batch[0]:
-        collated_batch['image_grid_thw'] = torch.cat([b['image_grid_thw'] for b in batch])
+        grid_list = []
+        for b in batch:
+            grid = b['image_grid_thw']
+            if isinstance(grid, torch.Tensor) and grid.dim() == 1:
+                grid = grid.unsqueeze(0)  # Kéo nó lại thành 2D (1, 3)
+            grid_list.append(grid)
+        collated_batch['image_grid_thw'] = torch.cat(grid_list, dim=0)
     
     # Nhét lại indices vào batch để sau này map với file output
     collated_batch['sample_indices'] = sample_indices
