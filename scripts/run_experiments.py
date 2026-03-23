@@ -269,8 +269,8 @@ def main():
             frame_id = original_sample.get('frame_id', "")
             
             # <--- THÊM ĐOẠN IN KẾT QUẢ VÀO ĐÂY --->
-            if print_count < 5:
-                print(f"\n[{print_count+1}/5] Kết quả mẫu:")
+            if print_count < 50:
+                print(f"\n[{print_count+1}/50] Kết quả mẫu:")
                 print(f"  - Thư mục : {folder_id}")
                 print(f"  - Frame ID: {frame_id}")
                 print(f"  - AI sinh : {final_instruction}")
