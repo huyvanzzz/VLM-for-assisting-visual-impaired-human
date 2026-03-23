@@ -97,7 +97,7 @@ class WADDataset(Dataset):
                     )
                     polm_list.append(polm)
                 polm_list.sort(key=lambda x: x.danger_score, reverse=True)
-        return polm_list[:15]
+        return polm_list[:30]
 
     # def _select_frames_safe(self, frame_path: str, num_frames: int = 1) -> List[int]:
     #     # (Giữ nguyên logic cũ của bạn)
