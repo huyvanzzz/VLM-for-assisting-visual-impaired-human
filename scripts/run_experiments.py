@@ -36,15 +36,6 @@ class WADInferenceDataset(WADDataset):
             polm_list = self._load_bboxes(folder_id, frame_ids)
             
             # 2. Tạo Text Prompt (Nạp toàn bộ môi trường động vào prompt)
-            if idx < 3:
-                import os
-                os.makedirs("debug_images", exist_ok=True)
-                # Duyệt qua từng frame (dù chỉ có 1 frame) và lưu lại
-                for f_idx, img in enumerate(frames):
-                    save_path = f"debug_images/debug_sample{idx}_frame{f_idx}.jpg"
-                    img.save(save_path)
-                    print(f"\n📸 [DEBUG] Đã lưu ảnh đầu vào tại: {save_path}")
-                    print(f"   -> Kích thước ảnh gốc đang nạp vào: {img.size}") 
             messages = construct_prompt(polm_list, num_images=self.num_frames, metadata=sample) 
             prompt_text = self.processor.apply_chat_template(
                 messages,
@@ -260,25 +251,6 @@ def main():
             if 'image_grid_thw' in batch: inputs['image_grid_thw'] = batch['image_grid_thw'].to(device)
             if 'image_sizes' in batch: inputs['image_sizes'] = batch['image_sizes'].to(device)
 
-        if print_count < 3:
-            original_sample = raw_metadata[sample_indices[0]]
-            folder_id = original_sample.get('folder_id', original_sample.get('frame_path', ""))
-            frame_id = original_sample.get('frame_id', "")
-            
-            print(f"\n{'='*60}")
-            print(f"[{print_count+1}/3] THÔNG TIN INPUT CỦA SAMPLE:")
-            print(f"  - Thư mục : {folder_id} | Frame ID: {frame_id}")
-            
-            # 1. In thông tin tensor ảnh
-            if 'pixel_values' in inputs:
-                print(f"  - Kích thước tensor ảnh: {inputs['pixel_values'].shape}")
-                
-            # 2. Dịch ngược input_ids thành text để xem Prompt
-            # Để skip_special_tokens=False để bạn nhìn thấy cả các tag như <|vision_start|>
-            decoded_prompt = tokenizer.decode(inputs['input_ids'][0], skip_special_tokens=False)
-            print(f"\n  - ĐỀ BÀI (PROMPT) ĐƯỢC ĐƯA VÀO MODEL:\n{decoded_prompt}")
-            print(f"{'-'*60}")
-
         with torch.no_grad():
             outputs = model.generate(**inputs, **gen_config)
         
@@ -297,8 +269,8 @@ def main():
             frame_id = original_sample.get('frame_id', "")
             
             # <--- THÊM ĐOẠN IN KẾT QUẢ VÀO ĐÂY --->
-            if print_count < 3:
-                print(f"\n[{print_count+3}/50] Kết quả mẫu:")
+            if print_count < 50:
+                print(f"\n[{print_count+50}/50] Kết quả mẫu:")
                 print(f"  - Thư mục : {folder_id}")
                 print(f"  - Frame ID: {frame_id}")
                 print(f"  - AI sinh : {final_instruction}")
