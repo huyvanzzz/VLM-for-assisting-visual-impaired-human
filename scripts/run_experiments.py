@@ -36,6 +36,15 @@ class WADInferenceDataset(WADDataset):
             polm_list = self._load_bboxes(folder_id, frame_ids)
             
             # 2. Tạo Text Prompt (Nạp toàn bộ môi trường động vào prompt)
+            if idx < 3:
+                import os
+                os.makedirs("debug_images", exist_ok=True)
+                # Duyệt qua từng frame (dù chỉ có 1 frame) và lưu lại
+                for f_idx, img in enumerate(frames):
+                    save_path = f"debug_images/debug_sample{idx}_frame{f_idx}.jpg"
+                    img.save(save_path)
+                    print(f"\n📸 [DEBUG] Đã lưu ảnh đầu vào tại: {save_path}")
+                    print(f"   -> Kích thước ảnh gốc đang nạp vào: {img.size}") 
             messages = construct_prompt(polm_list, num_images=self.num_frames, metadata=sample) 
             prompt_text = self.processor.apply_chat_template(
                 messages,
