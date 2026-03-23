@@ -63,8 +63,8 @@ def construct_prompt(
     # Tạo nội dung text hướng dẫn (Prompt)
     text_content = f"""You are a navigation assistant for blind people.
 
-Detected objects:
-{polm_text}
+# Detected objects:
+# {polm_text}
 
 Analyze: location, weather, traffic, scene → then give instruction.
 
