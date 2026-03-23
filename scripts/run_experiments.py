@@ -131,11 +131,11 @@ def custom_collate_fn(batch, tokenizer):
     
     # Gộp các tensor của ảnh (nếu có)
     if 'pixel_values' in batch[0]:
-        collated_batch['pixel_values'] = torch.stack([b['pixel_values'] for b in batch])
+        collated_batch['pixel_values'] = torch.cat([b['pixel_values'] for b in batch])
     if 'image_sizes' in batch[0]:
-        collated_batch['image_sizes'] = torch.stack([b['image_sizes'] for b in batch])
+        collated_batch['image_sizes'] = torch.cat([b['image_sizes'] for b in batch])
     if 'image_grid_thw' in batch[0]:
-        collated_batch['image_grid_thw'] = torch.stack([b['image_grid_thw'] for b in batch])
+        collated_batch['image_grid_thw'] = torch.cat([b['image_grid_thw'] for b in batch])
     
     # Nhét lại indices vào batch để sau này map với file output
     collated_batch['sample_indices'] = sample_indices
