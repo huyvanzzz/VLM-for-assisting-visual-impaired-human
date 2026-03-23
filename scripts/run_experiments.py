@@ -118,14 +118,26 @@ def custom_collate_fn(batch, tokenizer):
     if not batch:
         return None
     
-    # Tách sample_idx ra khỏi batch để collator gốc không bị bối rối
+    # Tách sample_idx ra khỏi batch
     sample_indices = [b.pop('sample_idx') for b in batch]
     
-    # Dùng data collator gốc của bạn
-    collator = VLMDataCollator(tokenizer=tokenizer)
-    collated_batch = collator(batch)
+    # --- TỰ BUID COLLATOR DÀNH RIÊNG CHO INFERENCE (BỎ LABELS) ---
+    pad_token_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
     
-    # Nhét lại indices vào batch
+    collated_batch = {
+        'input_ids': torch.nn.utils.rnn.pad_sequence([b['input_ids'] for b in batch], batch_first=True, padding_value=pad_token_id),
+        'attention_mask': torch.nn.utils.rnn.pad_sequence([b['attention_mask'] for b in batch], batch_first=True, padding_value=0),
+    }
+    
+    # Gộp các tensor của ảnh (nếu có)
+    if 'pixel_values' in batch[0]:
+        collated_batch['pixel_values'] = torch.stack([b['pixel_values'] for b in batch])
+    if 'image_sizes' in batch[0]:
+        collated_batch['image_sizes'] = torch.stack([b['image_sizes'] for b in batch])
+    if 'image_grid_thw' in batch[0]:
+        collated_batch['image_grid_thw'] = torch.stack([b['image_grid_thw'] for b in batch])
+    
+    # Nhét lại indices vào batch để sau này map với file output
     collated_batch['sample_indices'] = sample_indices
     return collated_batch
 
