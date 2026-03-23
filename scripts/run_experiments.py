@@ -225,10 +225,11 @@ def main():
 
     gen_config = {
         "max_new_tokens": 256,
-        "num_beams": 3,
-        "do_sample": False,
-        "repetition_penalty": 1.3,
-        "use_cache": True
+        "do_sample": True,
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "top_k": 50,
+        "repetition_penalty": 1.2
     }
     
     results = []
