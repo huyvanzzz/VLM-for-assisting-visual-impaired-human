@@ -187,7 +187,8 @@ def main():
             is_trainable=False
         )
     
-    device = model.device
+    device = config.get('hardware', {}).get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
     model.eval()
 
     # --- ĐỌC DỮ LIỆU ---
