@@ -269,6 +269,7 @@ def main():
             decoded_prompt = tokenizer.decode(inputs['input_ids'][0], skip_special_tokens=False)
             print(f"\n  - ĐỀ BÀI (PROMPT) ĐƯỢC ĐƯA VÀO MODEL:\n{decoded_prompt}")
             print(f"{'-'*60}")
+            print_count += 1
 
         with torch.no_grad():
             outputs = model.generate(**inputs, **gen_config)
