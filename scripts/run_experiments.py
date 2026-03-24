@@ -266,7 +266,13 @@ def main():
             original_sample = raw_metadata[sample_idx]
             folder_id = original_sample.get('folder_id', original_sample.get('frame_path', ""))
             frame_id = original_sample.get('frame_id', "")
-
+            if print_count < 50:
+                print(f"\n[{print_count+1}/50] Kết quả mẫu:")
+                print(f"  - Thư mục : {folder_id}")
+                print(f"  - Frame ID: {frame_id}")
+                print(f"  - AI sinh : {final_instruction}")
+                print("-" * 50)
+                print_count += 1
             results.append({
                 "folder_id": folder_id,
                 "frame_id": frame_id,
