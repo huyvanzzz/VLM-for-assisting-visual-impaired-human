@@ -249,7 +249,24 @@ def main():
             inputs['pixel_values'] = batch['pixel_values'].to(device)
             if 'image_grid_thw' in batch: inputs['image_grid_thw'] = batch['image_grid_thw'].to(device)
             if 'image_sizes' in batch: inputs['image_sizes'] = batch['image_sizes'].to(device)
-
+        if print_count < 3:
+            original_sample = raw_metadata[sample_indices[0]]
+            folder_id = original_sample.get('folder_id', original_sample.get('frame_path', ""))
+            frame_id = original_sample.get('frame_id', "")
+            
+            print(f"\n{'='*60}")
+            print(f"[{print_count+1}/3] THÔNG TIN INPUT CỦA SAMPLE:")
+            print(f"  - Thư mục : {folder_id} | Frame ID: {frame_id}")
+            
+            # 1. In thông tin tensor ảnh
+            if 'pixel_values' in inputs:
+                print(f"  - Kích thước tensor ảnh: {inputs['pixel_values'].shape}")
+                
+            # 2. Dịch ngược input_ids thành text để xem Prompt
+            # Để skip_special_tokens=False để bạn nhìn thấy cả các tag như <|vision_start|>
+            decoded_prompt = tokenizer.decode(inputs['input_ids'][0], skip_special_tokens=False)
+            print(f"\n  - ĐỀ BÀI (PROMPT) ĐƯỢC ĐƯA VÀO MODEL:\n{decoded_prompt}")
+            print(f"{'-'*60}")
         with torch.no_grad():
             outputs = model.generate(**inputs, **gen_config)
         
