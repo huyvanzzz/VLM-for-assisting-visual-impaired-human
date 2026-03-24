@@ -34,7 +34,22 @@ class WADInferenceDataset(WADDataset):
             frame_ids = self._get_target_frames(folder_id, target_frame_id)
             frames = self._load_frames(folder_id, frame_ids)
             polm_list = self._load_bboxes(folder_id, frame_ids)
-            
+            if idx < 3:
+                print(f"\n{'='*50}")
+                print(f"[DEBUG SAMPLE {idx}] Folder: {folder_id}")
+                print(f" 🎯 Target Frame ID: {target_frame_id}")
+                print(f" 📦 Danh sách 3 frames bốc được: {frame_ids}")
+                
+                # Lưu thẳng 3 ảnh ra thư mục working của Kaggle để bạn mở ra xem bằng mắt
+                import os
+                debug_dir = "/kaggle/working/check_3_frames"
+                os.makedirs(debug_dir, exist_ok=True)
+                
+                for i, (f_id, img) in enumerate(zip(frame_ids, frames)):
+                    save_path = f"{debug_dir}/sample{idx}_anh_thu_{i+1}_frame{f_id}.jpg"
+                    img.save(save_path)
+                    print(f"    📸 Đã lưu ảnh {i+1} (Size: {img.size}): {save_path}")
+                print(f"{'='*50}\n")
             # 2. Tạo Text Prompt (Nạp toàn bộ môi trường động vào prompt)
             messages = construct_prompt(polm_list, num_images=self.num_frames, metadata=sample) 
             prompt_text = self.processor.apply_chat_template(
